@@ -46,23 +46,11 @@ AskUserQuestion: What is your phone number? (Digits only — country code follow
 
 Check if `src/channels/whatsapp.ts` already exists. If it does, skip to Phase 3 (Authentication).
 
-### Ensure channel remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp main
-git merge whatsapp/main || {
+git fetch origin skill/whatsapp
+git merge origin/skill/whatsapp || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

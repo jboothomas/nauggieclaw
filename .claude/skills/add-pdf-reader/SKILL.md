@@ -14,23 +14,11 @@ Adds PDF reading capability to all container agents using poppler-utils (pdftote
 
 ## Phase 2: Apply Code Changes
 
-### Ensure WhatsApp fork remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp skill/pdf-reader
-git merge whatsapp/skill/pdf-reader || {
+git fetch origin skill/pdf-reader
+git merge origin/skill/pdf-reader || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

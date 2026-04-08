@@ -16,23 +16,11 @@ Adds the ability for NauggieClaww agents to see and understand images sent via W
 
 ## Phase 2: Apply Code Changes
 
-### Ensure WhatsApp fork remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp skill/image-vision
-git merge whatsapp/skill/image-vision || {
+git fetch origin skill/image-vision
+git merge origin/skill/image-vision || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

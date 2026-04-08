@@ -23,23 +23,11 @@ If they have one, collect it now. If not, we'll create one in Phase 3.
 
 ## Phase 2: Apply Code Changes
 
-### Ensure channel remote
-
-```bash
-git remote -v
-```
-
-If `telegram` is missing, add it:
-
-```bash
-git remote add telegram https://github.com/jboothomas/nauggieclaw-telegram.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch telegram main
-git merge telegram/main || {
+git fetch origin skill/telegram
+git merge origin/skill/telegram || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

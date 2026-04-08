@@ -24,23 +24,11 @@ AskUserQuestion: Should incoming emails be able to trigger the agent?
 
 ## Phase 2: Apply Code Changes
 
-### Ensure channel remote
-
-```bash
-git remote -v
-```
-
-If `gmail` is missing, add it:
-
-```bash
-git remote add gmail https://github.com/jboothomas/nauggieclaw-gmail.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch gmail main
-git merge gmail/main || {
+git fetch origin skill/gmail
+git merge origin/skill/gmail || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

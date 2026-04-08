@@ -25,23 +25,11 @@ If yes, collect it now. If no, direct them to create one at https://platform.ope
 
 **Prerequisite:** WhatsApp must be installed first (`skill/whatsapp` merged). This skill modifies WhatsApp channel files.
 
-### Ensure WhatsApp fork remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp skill/voice-transcription
-git merge whatsapp/skill/voice-transcription || {
+git fetch origin skill/voice-transcription
+git merge origin/skill/voice-transcription || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

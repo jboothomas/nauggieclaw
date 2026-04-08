@@ -59,23 +59,11 @@ For better accuracy at the cost of speed, use `ggml-small.bin` (466MB) or `ggml-
 
 ## Phase 2: Apply Code Changes
 
-### Ensure WhatsApp fork remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp skill/local-whisper
-git merge whatsapp/skill/local-whisper || {
+git fetch origin skill/local-whisper
+git merge origin/skill/local-whisper || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

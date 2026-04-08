@@ -23,23 +23,11 @@ If they have one, collect it now. If not, we'll create one in Phase 3.
 
 ## Phase 2: Apply Code Changes
 
-### Ensure channel remote
-
-```bash
-git remote -v
-```
-
-If `discord` is missing, add it:
-
-```bash
-git remote add discord https://github.com/jboothomas/nauggieclaw-discord.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch discord main
-git merge discord/main || {
+git fetch origin skill/discord
+git merge origin/skill/discord || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

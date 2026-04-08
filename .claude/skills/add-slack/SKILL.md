@@ -19,23 +19,11 @@ Check if `src/channels/slack.ts` exists. If it does, skip to Phase 3 (Setup). Th
 
 ## Phase 2: Apply Code Changes
 
-### Ensure channel remote
-
-```bash
-git remote -v
-```
-
-If `slack` is missing, add it:
-
-```bash
-git remote add slack https://github.com/jboothomas/nauggieclaw-slack.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch slack main
-git merge slack/main || {
+git fetch origin skill/slack
+git merge origin/skill/slack || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue

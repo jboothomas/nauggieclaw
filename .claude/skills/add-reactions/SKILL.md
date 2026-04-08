@@ -21,23 +21,11 @@ If already applied, skip to Phase 3 (Verify).
 
 ## Phase 2: Apply Code Changes
 
-### Ensure WhatsApp fork remote
-
-```bash
-git remote -v
-```
-
-If `whatsapp` is missing, add it:
-
-```bash
-git remote add whatsapp https://github.com/jboothomas/nauggieclaw-whatsapp.git
-```
-
 ### Merge the skill branch
 
 ```bash
-git fetch whatsapp skill/reactions
-git merge whatsapp/skill/reactions || {
+git fetch origin skill/reactions
+git merge origin/skill/reactions || {
   git checkout --theirs package-lock.json
   git add package-lock.json
   git merge --continue
