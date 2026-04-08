@@ -253,6 +253,10 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
     }, IDLE_TIMEOUT);
   };
 
+  // Register so the polling loop can reset the idle timer whenever it pipes
+  // a follow-up message into this container (queue.sendMessage returns true).
+  queue.registerIdleResetCallback(chatJid, resetIdleTimer);
+
   await channel.setTyping?.(chatJid, true);
   let hadError = false;
   let outputSentToUser = false;
@@ -285,6 +289,8 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   });
 
   await channel.setTyping?.(chatJid, false);
+  // Container run finished — remove the callback before clearing the timer.
+  queue.unregisterIdleResetCallback(chatJid);
   if (idleTimer) clearTimeout(idleTimer);
 
   if (output === 'error' || hadError) {

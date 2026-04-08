@@ -34,6 +34,8 @@ export class GroupQueue {
   private processMessagesFn: ((groupJid: string) => Promise<boolean>) | null =
     null;
   private shuttingDown = false;
+  /** Callbacks invoked whenever a follow-up message is successfully piped to an active container. */
+  private idleResetCallbacks = new Map<string, () => void>();
 
   private getGroup(groupJid: string): GroupState {
     let state = this.groups.get(groupJid);
@@ -57,6 +59,21 @@ export class GroupQueue {
 
   setProcessMessagesFn(fn: (groupJid: string) => Promise<boolean>): void {
     this.processMessagesFn = fn;
+  }
+
+  /**
+   * Register a callback that is invoked whenever a follow-up message is
+   * successfully piped to the active container for this group. The callback
+   * should call resetIdleTimer() so the 30-min countdown restarts from the
+   * moment the new work arrives, not from when the previous reply was sent.
+   */
+  registerIdleResetCallback(groupJid: string, cb: () => void): void {
+    this.idleResetCallbacks.set(groupJid, cb);
+  }
+
+  /** Remove the idle-reset callback when the container run finishes. */
+  unregisterIdleResetCallback(groupJid: string): void {
+    this.idleResetCallbacks.delete(groupJid);
   }
 
   enqueueMessageCheck(groupJid: string): void {
@@ -156,6 +173,8 @@ export class GroupQueue {
   /**
    * Send a follow-up message to the active container via IPC file.
    * Returns true if the message was written, false if no active container.
+   * On success, fires any registered idle-reset callback so the idle timer
+   * restarts from this point rather than from the previous reply.
    */
   sendMessage(groupJid: string, text: string): boolean {
     const state = this.getGroup(groupJid);
@@ -171,6 +190,8 @@ export class GroupQueue {
       const tempPath = `${filepath}.tmp`;
       fs.writeFileSync(tempPath, JSON.stringify({ type: 'message', text }));
       fs.renameSync(tempPath, filepath);
+      // Reset the idle timer so the container isn't killed mid-research on the follow-up.
+      this.idleResetCallbacks.get(groupJid)?.();
       return true;
     } catch {
       return false;
