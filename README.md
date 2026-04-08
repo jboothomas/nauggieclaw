@@ -3,24 +3,26 @@
 </p>
 
 <p align="center">
-  An AI assistant that runs agents securely in their own containers. Lightweight, built to be easily understood and completely customized for your needs.
+  An AI assistant that runs Auggie agents securely in their own containers.<br>
+  Lightweight, fully understandable, and completely customizable.
 </p>
 
 <p align="center">
-  <a href="https://github.com/jboothomas/nauggieclaw">nauggieclaw</a>&nbsp; • &nbsp;
-  <a href="README_zh.md">中文</a>&nbsp; • &nbsp;
-  <a href="README_ja.md">日本語</a>&nbsp; • &nbsp;
-  <a href="https://discord.gg/VDdww8qS42"><img src="https://img.shields.io/discord/1470188214710046894?label=Discord&logo=discord&v=2" alt="Discord" valign="middle"></a>&nbsp; • &nbsp;
-  <a href="repo-tokens"><img src="repo-tokens/badge.svg" alt="34.9k tokens, 17% of context window" valign="middle"></a>
+  <a href="https://github.com/jboothomas/nauggieclaw">github</a>&nbsp; • &nbsp;
+  <a href="https://augmentcode.com">augmentcode.com</a>
 </p>
 
 ---
 
-## Why I Built NauggieClaww
+> **Based on [NanoClaw](https://github.com/qwibitai/nanoclaw)** by qwibitai — adapted to run on [Augment Code's](https://augmentcode.com) `auggie` agent instead of Claude Code. The core architecture (containers, channels, IPC, skills) is unchanged. Only the agent execution layer has been swapped: `auggie` replaces the Claude Code SDK, and `AUGMENT_SESSION_AUTH` replaces Anthropic API keys. All credit for the original design goes to the NanoClaw team.
 
-[OpenClaw](https://github.com/openclaw/openclaw) is an impressive project, but I wouldn't have been able to sleep if I had given complex software I didn't understand full access to my life. OpenClaw has nearly half a million lines of code, 53 config files, and 70+ dependencies. Its security is at the application level (allowlists, pairing codes) rather than true OS-level isolation. Everything runs in one Node process with shared memory.
+---
 
-NauggieClaww provides that same core functionality, but in a codebase small enough to understand: one process and a handful of files. Auggie agents run in their own Linux containers with filesystem isolation, not merely behind permission checks.
+## Why NauggieClaww
+
+[OpenClaw](https://github.com/openclaw/openclaw) is an impressive project, but its security is at the application level (allowlists, pairing codes) rather than true OS-level isolation — and it has nearly half a million lines of code. NanoClaw solved that with a tiny, auditable codebase where agents run in isolated Linux containers.
+
+NauggieClaww takes NanoClaw's architecture and swaps in Auggie as the agent runtime. If you already use Augment Code and want a self-hosted assistant that runs on your existing subscription — no Anthropic API key required — this is it.
 
 ## Quick Start
 
@@ -57,11 +59,11 @@ Then run `/setup`. Auggie handles everything: dependencies, authentication, cont
 **AI-native.**
 - No installation wizard; Auggie guides setup.
 - No monitoring dashboard; ask Auggie what's happening.
-- No debugging tools; describe the problem and Claude fixes it.
+- No debugging tools; describe the problem and Auggie fixes it.
 
-**Skills over features.** Instead of adding features (e.g. support for Telegram) to the codebase, contributors submit [claude code skills](https://code.claude.com/docs/en/skills) like `/add-telegram` that transform your fork. You end up with clean code that does exactly what you need.
+**Skills over features.** Instead of adding features to the codebase, contributors submit skills like `/add-telegram` that transform your fork. You end up with clean code that does exactly what you need.
 
-**Best harness, best model.** NauggieClaww runs on the Claude Agent SDK, which means you're running Claude Code directly. Claude Code is highly capable and its coding and problem-solving capabilities allow it to modify and expand NauggieClaww and tailor it to each user.
+**Best harness, best model.** NauggieClaww runs on Auggie — Augment Code's agent. Auggie's coding and problem-solving capabilities let it modify and expand NauggieClaww and tailor it to each user, all from within your existing Augment subscription.
 
 ## What It Supports
 
@@ -71,7 +73,7 @@ Then run `/setup`. Auggie handles everything: dependencies, authentication, cont
 - **Scheduled tasks** - Recurring jobs that run Claude and can message you back
 - **Web access** - Search and fetch content from the Web
 - **Container isolation** - Agents are sandboxed in Docker (macOS/Linux), [Docker Sandboxes](docs/docker-sandboxes.md) (micro VM isolation), or Apple Container (macOS)
-- **Credential security** - Agents never hold raw API keys. Outbound requests route through [OneCLI's Agent Vault](https://github.com/onecli/onecli), which injects credentials at request time and enforces per-agent policies and rate limits.
+- **Credential security** - Agents never hold raw API keys. Auggie authentication is handled via `AUGMENT_SESSION_AUTH` injected at container start — credentials are never baked into the image.
 - **Agent Swarms** - Spin up teams of specialized agents that collaborate on complex tasks
 - **Optional integrations** - Add Gmail (`/add-gmail`) and more via skills
 
@@ -94,7 +96,7 @@ From the main channel (your self-chat), you can manage groups and tasks:
 
 ## Customizing
 
-NauggieClaww doesn't use configuration files. To make changes, just tell Claude Code what you want:
+NauggieClaww doesn't use configuration files. To make changes, just tell Auggie what you want:
 
 - "Change the trigger word to @Bob"
 - "Remember in the future to make responses shorter and more direct"
@@ -103,7 +105,7 @@ NauggieClaww doesn't use configuration files. To make changes, just tell Claude 
 
 Or run `/customize` for guided changes.
 
-The codebase is small enough that Claude can safely modify it.
+The codebase is small enough that Auggie can safely modify it.
 
 ## Contributing
 
@@ -124,13 +126,13 @@ Skills we'd like to see:
 
 - macOS, Linux, or Windows (via WSL2)
 - Node.js 20+
-- [Claude Code](https://claude.ai/download)
+- [Augment Code](https://augmentcode.com) with `auggie` CLI installed
 - [Apple Container](https://github.com/apple/container) (macOS) or [Docker](https://docker.com/products/docker-desktop) (macOS/Linux)
 
 ## Architecture
 
 ```
-Channels --> SQLite --> Polling loop --> Container (Claude Agent SDK) --> Response
+Channels --> SQLite --> Polling loop --> Container (Auggie) --> Response
 ```
 
 Single Node.js process. Channels are added via skills and self-register at startup — the orchestrator connects whichever ones have credentials present. Agents execute in isolated Linux containers with filesystem isolation. Only mounted directories are accessible. Per-group message queue with concurrency control. IPC via filesystem.
@@ -160,35 +162,29 @@ Yes. Docker is the default runtime and works on macOS, Linux, and Windows (via W
 
 **Is this secure?**
 
-Agents run in containers, not behind application-level permission checks. They can only access explicitly mounted directories. Credentials never enter the container — outbound API requests route through [OneCLI's Agent Vault](https://github.com/onecli/onecli), which injects authentication at the proxy level and supports rate limits and access policies. You should still review what you're running, but the codebase is small enough that you actually can.
+Agents run in containers, not behind application-level permission checks. They can only access explicitly mounted directories. Credentials never enter the container as raw keys — `AUGMENT_SESSION_AUTH` is injected at container start time and is the only credential the agent ever sees. You should still review what you're running, but the codebase is small enough that you actually can.
 
 **Why no configuration files?**
 
-We don't want configuration sprawl. Every user should customize NauggieClaww so that the code does exactly what they want, rather than configuring a generic system. If you prefer having config files, you can tell Claude to add them.
+We don't want configuration sprawl. Every user should customize NauggieClaww so that the code does exactly what they want, rather than configuring a generic system. If you prefer having config files, you can tell Auggie to add them.
 
-**Can I use third-party or open-source models?**
+**Can I use a different model?**
 
-Yes. NauggieClaww supports any Claude API-compatible model endpoint. Set these environment variables in your `.env` file:
+Yes. Auggie supports model overrides via the `AUGGIE_MODEL` env var in your `.env` file:
 
 ```bash
-ANTHROPIC_BASE_URL=https://your-api-endpoint.com
-ANTHROPIC_AUTH_TOKEN=your-token-here
+AUGGIE_MODEL=claude-sonnet-4-5  # or any model Augment supports
 ```
 
-This allows you to use:
-- Local models via [Ollama](https://ollama.ai) with an API proxy
-- Open-source models hosted on [Together AI](https://together.ai), [Fireworks](https://fireworks.ai), etc.
-- Custom model deployments with Anthropic-compatible APIs
-
-Note: The model must support the Anthropic API format for best compatibility.
+For local models, use the `/add-ollama-tool` skill to give agents access to locally running Ollama models without replacing Auggie as the orchestrator.
 
 **How do I debug issues?**
 
-Ask Claude Code. "Why isn't the scheduler running?" "What's in the recent logs?" "Why did this message not get a response?" That's the AI-native approach that underlies NauggieClaww.
+Ask Auggie. "Why isn't the scheduler running?" "What's in the recent logs?" "Why did this message not get a response?" That's the AI-native approach that underlies NauggieClaww.
 
 **Why isn't the setup working for me?**
 
-If you have issues, during setup, Claude will try to dynamically fix them. If that doesn't work, run `claude`, then run `/debug`. If Claude finds an issue that is likely affecting other users, open a PR to modify the setup SKILL.md.
+If you have issues during setup, Auggie will try to dynamically fix them. If that doesn't work, run `auggie`, then run `/debug`. If Auggie finds an issue that is likely affecting other users, open a PR to modify the setup SKILL.md.
 
 **What changes will be accepted into the codebase?**
 
@@ -200,7 +196,7 @@ This keeps the base system minimal and lets every user customize their installat
 
 ## Community
 
-Questions? Ideas? [Join the Discord](https://discord.gg/VDdww8qS42).
+Questions, ideas, or contributions? Open an issue or PR at [jboothomas/nauggieclaw](https://github.com/jboothomas/nauggieclaw). For discussion about the upstream project, see [qwibitai/nanoclaw](https://github.com/qwibitai/nanoclaw).
 
 ## Changelog
 
