@@ -234,7 +234,7 @@ function setupSystemd(
   }
 
   const unit = `[Unit]
-Description=NauggieClaww Personal Assistant
+Description=NauggieClaw Personal Assistant
 After=network.target
 
 [Service]
@@ -333,7 +333,7 @@ function setupNohupFallback(
 
   const lines = [
     '#!/bin/bash',
-    '# start-nauggieclaw.sh — Start NauggieClaww without systemd',
+    '# start-nauggieclaw.sh — Start NauggieClaw without systemd',
     `# To stop: kill \\$(cat ${pidFile})`,
     '',
     'set -euo pipefail',
@@ -344,19 +344,19 @@ function setupNohupFallback(
     `if [ -f ${JSON.stringify(pidFile)} ]; then`,
     `  OLD_PID=$(cat ${JSON.stringify(pidFile)} 2>/dev/null || echo "")`,
     '  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then',
-    '    echo "Stopping existing NauggieClaww (PID $OLD_PID)..."',
+    '    echo "Stopping existing NauggieClaw (PID $OLD_PID)..."',
     '    kill "$OLD_PID" 2>/dev/null || true',
     '    sleep 2',
     '  fi',
     'fi',
     '',
-    'echo "Starting NauggieClaww..."',
+    'echo "Starting NauggieClaw..."',
     `nohup ${JSON.stringify(nodePath)} ${JSON.stringify(projectRoot + '/dist/index.js')} \\`,
     `  >> ${JSON.stringify(projectRoot + '/logs/nauggieclaw.log')} \\`,
     `  2>> ${JSON.stringify(projectRoot + '/logs/nauggieclaw.error.log')} &`,
     '',
     `echo $! > ${JSON.stringify(pidFile)}`,
-    'echo "NauggieClaww started (PID $!)"',
+    'echo "NauggieClaw started (PID $!)"',
     `echo "Logs: tail -f ${projectRoot}/logs/nauggieclaw.log"`,
   ];
   const wrapper = lines.join('\n') + '\n';

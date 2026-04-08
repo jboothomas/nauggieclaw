@@ -1,5 +1,5 @@
 /**
- * Container Runner for NauggieClaww
+ * Container Runner for NauggieClaw
  * Spawns agent execution in containers and handles IPC
  */
 import { ChildProcess, execFile, spawn } from 'child_process';

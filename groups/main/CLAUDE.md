@@ -79,7 +79,7 @@ This is the **main channel**, which has elevated privileges.
 
 ## Authentication
 
-NauggieClaww uses Auggie for agent execution inside containers. Authentication is handled via the `AUGMENT_SESSION_AUTH` environment variable, which is injected at container startup from the host's Auggie session token. To refresh credentials, run `auggie login` on the host and restart NauggieClaww.
+NauggieClaw uses Auggie for agent execution inside containers. Authentication is handled via the `AUGMENT_SESSION_AUTH` environment variable, which is injected at container startup from the host's Auggie session token. To refresh credentials, run `auggie login` on the host and restart NauggieClaw.
 
 ## Container Mounts
 

@@ -1,4 +1,4 @@
-# Migrating OpenClaw Cron Jobs to NauggieClaww Scheduled Tasks
+# Migrating OpenClaw Cron Jobs to NauggieClaw Scheduled Tasks
 
 This file is referenced by SKILL.md Phase 5 when cron jobs are detected.
 
@@ -20,7 +20,7 @@ The jobs file is `{ version: 1, jobs: CronJob[] }`. Each job has:
 - `failureAlert`: `{ after?: number, channel?, to?, cooldownMs? }` | `false`
 - `state`: runtime state (nextRunAtMs, lastRunStatus, consecutiveErrors, etc.)
 
-## NauggieClaww `scheduled_tasks` Table
+## NauggieClaw `scheduled_tasks` Table
 
 Source: `src/db.ts`
 
@@ -50,11 +50,11 @@ Source: `src/db.ts`
 
 ## What Doesn't Map
 
-- `delivery.mode:"webhook"` — NauggieClaww has no webhook delivery. Discuss with the user: this could be implemented as a task `script` that runs `curl` to hit the webhook endpoint.
-- `failureAlert` — NauggieClaww has no failure alert system. Note this to the user.
-- `wakeMode` — NauggieClaww tasks always wake the agent immediately.
-- `payload.model`, `payload.thinking`, `payload.timeoutSeconds` — NauggieClaww doesn't support per-task model/thinking config. These are handled by the SDK.
-- `deleteAfterRun` — NauggieClaww `"once"` tasks are marked `"completed"` after running, not deleted.
+- `delivery.mode:"webhook"` — NauggieClaw has no webhook delivery. Discuss with the user: this could be implemented as a task `script` that runs `curl` to hit the webhook endpoint.
+- `failureAlert` — NauggieClaw has no failure alert system. Note this to the user.
+- `wakeMode` — NauggieClaw tasks always wake the agent immediately.
+- `payload.model`, `payload.thinking`, `payload.timeoutSeconds` — NauggieClaw doesn't support per-task model/thinking config. These are handled by the SDK.
+- `deleteAfterRun` — NauggieClaw `"once"` tasks are marked `"completed"` after running, not deleted.
 
 ## For Each Enabled Job
 

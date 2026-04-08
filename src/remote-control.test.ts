@@ -97,7 +97,7 @@ describe('remote-control', () => {
       });
       expect(spawnMock).toHaveBeenCalledWith(
         'claude',
-        ['remote-control', '--name', 'NauggieClaww Remote'],
+        ['remote-control', '--name', 'NauggieClaw Remote'],
         expect.objectContaining({ cwd: '/project', detached: true }),
       );
       expect(proc.unref).toHaveBeenCalled();

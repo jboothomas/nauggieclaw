@@ -1,9 +1,9 @@
 ---
 name: setup
-description: Run initial NauggieClaww setup. Use when user wants to install dependencies, authenticate messaging channels, register their main channel, or start the background services. Triggers on "setup", "install", "configure nauggieclaw", or first-time setup requests.
+description: Run initial NauggieClaw setup. Use when user wants to install dependencies, authenticate messaging channels, register their main channel, or start the background services. Triggers on "setup", "install", "configure nauggieclaw", or first-time setup requests.
 ---
 
-# NauggieClaww Setup
+# NauggieClaw Setup
 
 Run setup steps automatically. Only pause when user action is required (channel authentication, configuration choices). Setup uses `bash setup.sh` for bootstrap, then `npx tsx setup/index.ts --step <name>` for all other steps. Steps emit structured status blocks to stdout. Verbose logs go to `logs/setup.log`.
 
@@ -20,7 +20,7 @@ Run:
 
 **Case A — `origin` points to `jboothomas/nauggieclaw` (user cloned directly):**
 
-The user cloned instead of forking. AskUserQuestion: "You cloned NauggieClaww directly. We recommend forking so you can push your customizations. Would you like to set up a fork?"
+The user cloned instead of forking. AskUserQuestion: "You cloned NauggieClaw directly. We recommend forking so you can push your customizations. Would you like to set up a fork?"
 - Fork now (recommended) — walk them through it
 - Continue without fork — they'll only have local changes
 
@@ -81,7 +81,7 @@ ls -d ~/.openclaw 2>/dev/null || ls -d ~/.clawdbot 2>/dev/null
 If a directory is found, AskUserQuestion:
 
 1. **Migrate now** — "Import identity, credentials, and settings from OpenClaw before continuing setup."
-2. **Fresh start** — "Skip migration and set up NauggieClaww from scratch."
+2. **Fresh start** — "Skip migration and set up NauggieClaw from scratch."
 3. **Migrate later** — "Continue setup now, run `/migrate-from-openclaw` anytime later."
 
 If "Migrate now": invoke `/migrate-from-openclaw`, then return here and continue at step 2a (Timezone).
@@ -140,7 +140,7 @@ Run `npx tsx setup/index.ts --step container -- --runtime <chosen>` and parse th
 
 ## 4. Auggie Authentication
 
-NauggieClaww uses Auggie (Augment Code) for agent execution. No Anthropic API key or Claude subscription is needed — authentication is handled entirely through Auggie.
+NauggieClaw uses Auggie (Augment Code) for agent execution. No Anthropic API key or Claude subscription is needed — authentication is handled entirely through Auggie.
 
 Check if already authenticated:
 ```bash
@@ -163,7 +163,7 @@ This opens a browser for authentication. Wait for the user to confirm login comp
 auggie token print >> .env
 ```
 
-This writes `SESSION=<token>` to `.env`. NauggieClaww reads `AUGMENT_SESSION_AUTH` — the container runner also accepts a live Auggie session directly via `auggie token print` at startup, so pinning is optional.
+This writes `SESSION=<token>` to `.env`. NauggieClaw reads `AUGMENT_SESSION_AUTH` — the container runner also accepts a live Auggie session directly via `auggie token print` at startup, so pinning is optional.
 
 ## 5. Set Up Channels
 

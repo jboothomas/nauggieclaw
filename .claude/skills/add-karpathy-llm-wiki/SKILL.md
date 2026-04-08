@@ -1,11 +1,11 @@
 ---
 name: add-karpathy-llm-wiki
-description: Add a persistent wiki knowledge base to a NauggieClaww group. Based on Karpathy's LLM Wiki pattern. Triggers on "add wiki", "wiki", "knowledge base", "llm wiki", "karpathy wiki".
+description: Add a persistent wiki knowledge base to a NauggieClaw group. Based on Karpathy's LLM Wiki pattern. Triggers on "add wiki", "wiki", "knowledge base", "llm wiki", "karpathy wiki".
 ---
 
 # Add Karpathy LLM Wiki
 
-Set up a persistent wiki knowledge base on NauggieClaww, based on Karpathy's LLM Wiki pattern.
+Set up a persistent wiki knowledge base on NauggieClaw, based on Karpathy's LLM Wiki pattern.
 
 ## Step 1: Read the pattern
 
@@ -71,7 +71,7 @@ AskUserQuestion: "Want periodic wiki health checks?"
 2. **Monthly**
 3. **Skip** — lint manually
 
-If yes, create a NauggieClaww scheduled task that runs in the wiki group. This is NOT a Claude Code cron job — it's a NauggieClaww group task that runs in the agent container. Insert it into the SQLite database:
+If yes, create a NauggieClaw scheduled task that runs in the wiki group. This is NOT a Claude Code cron job — it's a NauggieClaw group task that runs in the agent container. Insert it into the SQLite database:
 
 ```bash
 npx tsx -e "

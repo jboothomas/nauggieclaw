@@ -1,5 +1,5 @@
 /**
- * Stdio MCP Server for NauggieClaww
+ * Stdio MCP Server for NauggieClaw
  * Launched by the agent runner via --mcp-config so the Auggie agent can call
  * nauggieclaw tools (send_message, schedule_task, etc.) via MCP.
  * Reads context from environment variables, writes IPC files for the host.

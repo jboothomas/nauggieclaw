@@ -1,18 +1,18 @@
 # Add Parallel AI Integration
 
-Adds Parallel AI MCP integration to NauggieClaww for advanced web research capabilities.
+Adds Parallel AI MCP integration to NauggieClaw for advanced web research capabilities.
 
 ## What This Adds
 
 - **Quick Search** - Fast web lookups using Parallel Search API (free to use)
 - **Deep Research** - Comprehensive analysis using Parallel Task API (asks permission)
-- **Non-blocking Design** - Uses NauggieClaww scheduler for result polling (no container blocking)
+- **Non-blocking Design** - Uses NauggieClaw scheduler for result polling (no container blocking)
 
 ## Prerequisites
 
 User must have:
 1. Parallel AI API key from https://platform.parallel.ai
-2. NauggieClaww already set up and running
+2. NauggieClaw already set up and running
 3. Docker installed and running
 
 ## Implementation Steps

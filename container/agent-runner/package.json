@@ -2,7 +2,7 @@
   "name": "nauggieclaw-agent-runner",
   "version": "1.0.0",
   "type": "module",
-  "description": "Container-side agent runner for NauggieClaww",
+  "description": "Container-side agent runner for NauggieClaw",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

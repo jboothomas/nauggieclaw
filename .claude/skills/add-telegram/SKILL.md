@@ -5,7 +5,7 @@ description: Add Telegram as a channel. Can replace WhatsApp entirely or run alo
 
 # Add Telegram Channel
 
-This skill adds Telegram support to NauggieClaww, then walks through interactive setup.
+This skill adds Telegram support to NauggieClaw, then walks through interactive setup.
 
 ## Phase 1: Pre-flight
 

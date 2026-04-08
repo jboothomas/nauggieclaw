@@ -1,4 +1,4 @@
-# NauggieClaww Specification
+# NauggieClaw Specification
 
 A personal Auggie assistant with multi-channel support, persistent memory per conversation, scheduled tasks, and container-isolated agent execution.
 
@@ -390,7 +390,7 @@ Configure authentication in a `.env` file in the project root. Two options:
 ```bash
 CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-...
 ```
-Run `auggie login` on the host. NauggieClaww calls `auggie token print` at container start to inject the live session token automatically.
+Run `auggie login` on the host. NauggieClaw calls `auggie token print` at container start to inject the live session token automatically.
 
 **Option 2: Pay-per-use API Key**
 ```bash
@@ -422,7 +422,7 @@ Files with `{{PLACEHOLDER}}` values need to be configured:
 
 ## Memory System
 
-NauggieClaww uses a hierarchical memory system based on CLAUDE.md files (passed to auggie via `--rules`).
+NauggieClaw uses a hierarchical memory system based on CLAUDE.md files (passed to auggie via `--rules`).
 
 ### Memory Hierarchy
 
@@ -636,12 +636,12 @@ The `nanoclaw` MCP server is created dynamically per agent call with the current
 
 ## Deployment
 
-NauggieClaww runs as a single macOS launchd service.
+NauggieClaw runs as a single macOS launchd service.
 
 ### Startup Sequence
 
-When NauggieClaww starts, it:
-1. **Ensures container runtime is running** - Automatically starts it if needed; kills orphaned NauggieClaww containers from previous runs
+When NauggieClaw starts, it:
+1. **Ensures container runtime is running** - Automatically starts it if needed; kills orphaned NauggieClaw containers from previous runs
 2. Initializes the SQLite database (migrates from JSON files if they exist)
 3. Loads state from SQLite (registered groups, sessions, router state)
 4. **Connects channels** — loops through registered channels, instantiates those with credentials, calls `connect()` on each

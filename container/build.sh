@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the NauggieClaww agent container image
+# Build the NauggieClaw agent container image
 
 set -e
 
@@ -10,7 +10,7 @@ IMAGE_NAME="nauggieclaw-agent"
 TAG="${1:-latest}"
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
 
-echo "Building NauggieClaww agent container image..."
+echo "Building NauggieClaw agent container image..."
 echo "Image: ${IMAGE_NAME}:${TAG}"
 
 ${CONTAINER_RUNTIME} build -t "${IMAGE_NAME}:${TAG}" .

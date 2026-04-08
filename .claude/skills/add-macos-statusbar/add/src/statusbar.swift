@@ -7,7 +7,7 @@ class StatusBarController: NSObject {
 
     private let plistPath = "\(NSHomeDirectory())/Library/LaunchAgents/com.nauggieclaw.plist"
 
-    /// Derive the NauggieClaww project root from the binary location.
+    /// Derive the NauggieClaw project root from the binary location.
     /// The binary is compiled to {project}/dist/statusbar, so the parent of
     /// the parent directory is the project root.
     private static let projectRoot: String = {
@@ -34,13 +34,13 @@ class StatusBarController: NSObject {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            if let image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "NauggieClaww") {
+            if let image = NSImage(systemSymbolName: "bolt.fill", accessibilityDescription: "NauggieClaw") {
                 image.isTemplate = true
                 button.image = image
             } else {
                 button.title = "⚡"
             }
-            button.toolTip = "NauggieClaww"
+            button.toolTip = "NauggieClaw"
         }
     }
 
@@ -68,7 +68,7 @@ class StatusBarController: NSObject {
         let dot = "● "
         let dotColor: NSColor = isRunning ? .systemGreen : .systemRed
         let attr = NSMutableAttributedString(string: dot, attributes: [.foregroundColor: dotColor])
-        let label = isRunning ? "NauggieClaww is running" : "NauggieClaww is stopped"
+        let label = isRunning ? "NauggieClaw is running" : "NauggieClaw is stopped"
         attr.append(NSAttributedString(string: label, attributes: [.foregroundColor: NSColor.labelColor]))
         statusItem.attributedTitle = attr
         statusItem.isEnabled = false

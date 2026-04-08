@@ -1,11 +1,11 @@
 ---
 name: capabilities
-description: Show what this NauggieClaww instance can do — installed skills, available tools, and system info. Read-only. Use when the user asks what the bot can do, what's installed, or runs /capabilities.
+description: Show what this NauggieClaw instance can do — installed skills, available tools, and system info. Read-only. Use when the user asks what the bot can do, what's installed, or runs /capabilities.
 ---
 
 # /capabilities — System Capabilities Report
 
-Generate a structured read-only report of what this NauggieClaww instance can do.
+Generate a structured read-only report of what this NauggieClaw instance can do.
 
 **Main-channel check:** Only the main channel has `/workspace/project` mounted. Run:
 
@@ -42,7 +42,7 @@ You always have access to:
 
 ### 3. MCP server tools
 
-The NauggieClaww MCP server exposes these tools:
+The NauggieClaw MCP server exposes these tools:
 - `send_message` — send a message to the user/group
 - `schedule_task` — schedule a recurring or one-time task
 - `list_tasks` — list scheduled tasks
@@ -72,7 +72,7 @@ ls /workspace/extra/ 2>/dev/null && echo "Extra mounts: $(ls /workspace/extra/ 2
 Present the report as a clean, readable message. Example:
 
 ```
-📋 *NauggieClaww Capabilities*
+📋 *NauggieClaw Capabilities*
 
 *Installed Skills:*
 • /agent-browser — Browse the web, fill forms, extract data

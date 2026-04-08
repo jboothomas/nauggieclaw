@@ -21,7 +21,7 @@
 
 ## Skills
 
-NauggieClaww uses skills — markdown files with optional supporting files that teach Auggie how to do something. There are four types of skills in NauggieClaww, each serving a different purpose.
+NauggieClaw uses skills — markdown files with optional supporting files that teach Auggie how to do something. There are four types of skills in NauggieClaw, each serving a different purpose.
 
 ### Why skills?
 
@@ -31,7 +31,7 @@ Every user should have clean and minimal code that does exactly what they need. 
 
 #### 1. Feature skills (branch-based)
 
-Add capabilities to NauggieClaww by merging a git branch. The SKILL.md contains setup instructions; the actual code lives on a `skill/*` branch.
+Add capabilities to NauggieClaw by merging a git branch. The SKILL.md contains setup instructions; the actual code lives on a `skill/*` branch.
 
 **Location:** `.claude/skills/` on `main` (instructions only), code on `skill/*` branch
 

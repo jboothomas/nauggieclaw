@@ -1,5 +1,5 @@
 /**
- * Cross-platform detection utilities for NauggieClaww setup.
+ * Cross-platform detection utilities for NauggieClaw setup.
  */
 import { execSync } from 'child_process';
 import fs from 'fs';

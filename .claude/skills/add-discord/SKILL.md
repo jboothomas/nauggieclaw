@@ -1,11 +1,11 @@
 ---
 name: add-discord
-description: Add Discord bot channel integration to NauggieClaww.
+description: Add Discord bot channel integration to NauggieClaw.
 ---
 
 # Add Discord Channel
 
-This skill adds Discord support to NauggieClaww, then walks through interactive setup.
+This skill adds Discord support to NauggieClaw, then walks through interactive setup.
 
 ## Phase 1: Pre-flight
 
@@ -172,7 +172,7 @@ If the bot connects but can't read messages, ensure:
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Select your application > **Bot** tab
 3. Under **Privileged Gateway Intents**, enable **Message Content Intent**
-4. Restart NauggieClaww
+4. Restart NauggieClaw
 
 ### Getting Channel ID
 
@@ -186,6 +186,6 @@ The Discord bot supports:
 - Text messages in registered channels
 - Attachment descriptions (images, videos, files shown as placeholders)
 - Reply context (shows who the user is replying to)
-- @mention translation (Discord `<@botId>` → NauggieClaww trigger format)
+- @mention translation (Discord `<@botId>` → NauggieClaw trigger format)
 - Message splitting for responses over 2000 characters
 - Typing indicators while the agent processes

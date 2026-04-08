@@ -1,4 +1,4 @@
-# NauggieClaww
+# NauggieClaw
 
 Personal Auggie assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
 
@@ -24,14 +24,14 @@ Single Node.js process with skill-based channel system. Channels (WhatsApp, Tele
 ## Secrets / Credentials
 
 Auggie authentication is handled via `AUGMENT_SESSION_AUTH`. Run `auggie login` on the host to authenticate, then either:
-- Let NauggieClaww auto-inject the live session token (calls `auggie token print` at container start), or
+- Let NauggieClaw auto-inject the live session token (calls `auggie token print` at container start), or
 - Set `AUGMENT_SESSION_AUTH=<json>` in `.env` for a pinned token.
 
 No keys are ever passed to containers directly — credentials are injected as env vars at runtime.
 
 ## Skills
 
-Four types of skills exist in NauggieClaww. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
+Four types of skills exist in NauggieClaw. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
 
 - **Feature skills** — merge a `skill/*` branch to add capabilities (e.g. `/add-telegram`, `/add-slack`)
 - **Utility skills** — ship code files alongside SKILL.md (e.g. `/claw`)
@@ -43,7 +43,7 @@ Four types of skills exist in NauggieClaww. See [CONTRIBUTING.md](CONTRIBUTING.m
 | `/setup` | First-time installation, authentication, service configuration |
 | `/customize` | Adding channels, integrations, changing behavior |
 | `/debug` | Container issues, logs, troubleshooting |
-| `/update-nanoclaw` | Bring upstream NauggieClaww updates into a customized install |
+| `/update-nanoclaw` | Bring upstream NauggieClaw updates into a customized install |
 | `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch |
 | `/get-qodo-rules` | Load org- and repo-level coding rules from Qodo before code tasks |
 

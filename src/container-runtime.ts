@@ -1,5 +1,5 @@
 /**
- * Container runtime abstraction for NauggieClaww.
+ * Container runtime abstraction for NauggieClaw.
  * All runtime-specific logic lives here so swapping runtimes means changing one file.
  */
 import { execSync } from 'child_process';
@@ -64,7 +64,7 @@ export function ensureContainerRuntimeRunning(): void {
       '║  2. Run: docker info                                           ║',
     );
     console.error(
-      '║  3. Restart NauggieClaww                                       ║',
+      '║  3. Restart NauggieClaw                                       ║',
     );
     console.error(
       '╚════════════════════════════════════════════════════════════════╝\n',
@@ -75,7 +75,7 @@ export function ensureContainerRuntimeRunning(): void {
   }
 }
 
-/** Kill orphaned NauggieClaww containers from previous runs. */
+/** Kill orphaned NauggieClaw containers from previous runs. */
 export function cleanupOrphans(): void {
   try {
     const output = execSync(

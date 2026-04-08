@@ -1,11 +1,11 @@
 ---
 name: add-gmail
-description: Add Gmail integration to NauggieClaww. Can be configured as a tool (agent reads/sends emails when triggered from WhatsApp) or as a full channel (emails can trigger the agent, schedule tasks, and receive replies). Guides through GCP OAuth setup and implements the integration.
+description: Add Gmail integration to NauggieClaw. Can be configured as a tool (agent reads/sends emails when triggered from WhatsApp) or as a full channel (emails can trigger the agent, schedule tasks, and receive replies). Guides through GCP OAuth setup and implements the integration.
 ---
 
 # Add Gmail Integration
 
-This skill adds Gmail support to NauggieClaww — either as a tool (read, send, search, draft) or as a full channel that polls the inbox.
+This skill adds Gmail support to NauggieClaw — either as a tool (read, send, search, draft) or as a full channel that polls the inbox.
 
 ## Phase 1: Pre-flight
 
@@ -85,7 +85,7 @@ Tell the user:
 > 2. Go to **APIs & Services > Library**, search "Gmail API", click **Enable**
 > 3. Go to **APIs & Services > Credentials**, click **+ CREATE CREDENTIALS > OAuth client ID**
 >    - If prompted for consent screen: choose "External", fill in app name and email, save
->    - Application type: **Desktop app**, name: anything (e.g., "NauggieClaww Gmail")
+>    - Application type: **Desktop app**, name: anything (e.g., "NauggieClaw Gmail")
 > 4. Click **DOWNLOAD JSON** and save as `gcp-oauth.keys.json`
 >
 > Where did you save the file? (Give me the full path, or paste the file contents here)

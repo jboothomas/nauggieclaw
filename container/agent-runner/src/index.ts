@@ -1,5 +1,5 @@
 /**
- * NauggieClaww Agent Runner
+ * NauggieClaw Agent Runner
  * Runs inside a container, receives config via stdin, outputs result to stdout.
  * Uses the Auggie CLI (`auggie --print`) for agent execution.
  *

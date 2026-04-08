@@ -1,11 +1,11 @@
 ---
 name: add-macos-statusbar
-description: Add a macOS menu bar status indicator for NauggieClaww. Shows a bolt icon with a green/red dot indicating whether NauggieClaww is running, with Start, Stop, and Restart controls. macOS only.
+description: Add a macOS menu bar status indicator for NauggieClaw. Shows a bolt icon with a green/red dot indicating whether NauggieClaw is running, with Start, Stop, and Restart controls. macOS only.
 ---
 
 # Add macOS Menu Bar Status Indicator
 
-Adds a persistent menu bar icon that shows NauggieClaww's running status and lets the user
+Adds a persistent menu bar icon that shows NauggieClaw's running status and lets the user
 start, stop, or restart the service — similar to how Docker Desktop appears in the menu bar.
 
 **macOS only.** Requires Xcode Command Line Tools (`swiftc`).
@@ -117,10 +117,10 @@ The first column should show a PID (not `-`).
 
 Tell the user:
 
-> The bolt icon should now appear in your macOS menu bar. Click it to see NauggieClaww's status and control the service.
+> The bolt icon should now appear in your macOS menu bar. Click it to see NauggieClaw's status and control the service.
 >
-> - **Green dot** — NauggieClaww is running
-> - **Red dot** — NauggieClaww is stopped
+> - **Green dot** — NauggieClaw is running
+> - **Red dot** — NauggieClaw is stopped
 >
 > Use **Restart** after making code changes, and **View Logs** to open the log file directly.
 

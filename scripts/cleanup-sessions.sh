@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Prune stale session artifacts (Auggie session JSONs, group logs).
-# Safe to run while NauggieClaww is live — active sessions are read from the DB.
+# Safe to run while NauggieClaw is live — active sessions are read from the DB.
 #
 # Usage:  ./scripts/cleanup-sessions.sh [--dry-run]
 #

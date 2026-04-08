@@ -5,7 +5,7 @@ description: Add WhatsApp emoji reaction support — receive, send, store, and s
 
 # Add Reactions
 
-This skill adds emoji reaction support to NauggieClaww's WhatsApp channel: receive and store reactions, send reactions from the container agent via MCP tool, and query reaction history from SQLite.
+This skill adds emoji reaction support to NauggieClaw's WhatsApp channel: receive and store reactions, send reactions from the container agent via MCP tool, and query reaction history from SQLite.
 
 ## Phase 1: Pre-flight
 
@@ -90,7 +90,7 @@ Ask the agent to react to a message via the `react_to_message` MCP tool. Check y
 
 ### Reactions not appearing in database
 
-- Check NauggieClaww logs for `Failed to process reaction` errors
+- Check NauggieClaw logs for `Failed to process reaction` errors
 - Verify the chat is registered
 - Confirm the service is running
 

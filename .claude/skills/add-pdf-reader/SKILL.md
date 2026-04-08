@@ -1,6 +1,6 @@
 ---
 name: add-pdf-reader
-description: Add PDF reading to NauggieClaww agents. Extracts text from PDFs via pdftotext CLI. Handles WhatsApp attachments, URLs, and local files.
+description: Add PDF reading to NauggieClaw agents. Extracts text from PDFs via pdftotext CLI. Handles WhatsApp attachments, URLs, and local files.
 ---
 
 # Add PDF Reader

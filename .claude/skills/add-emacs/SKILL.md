@@ -1,11 +1,11 @@
 ---
 name: add-emacs
-description: Add Emacs as a channel. Opens an interactive chat buffer and org-mode integration so you can talk to NauggieClaww from within Emacs (Doom, Spacemacs, or vanilla). Uses a local HTTP bridge — no bot token or external service needed.
+description: Add Emacs as a channel. Opens an interactive chat buffer and org-mode integration so you can talk to NauggieClaw from within Emacs (Doom, Spacemacs, or vanilla). Uses a local HTTP bridge — no bot token or external service needed.
 ---
 
 # Add Emacs Channel
 
-This skill adds Emacs support to NauggieClaww, then walks through interactive setup.
+This skill adds Emacs support to NauggieClaw, then walks through interactive setup.
 Works with Doom Emacs, Spacemacs, and vanilla Emacs 27.1+.
 
 ## What you can do with this
@@ -15,7 +15,7 @@ Works with Doom Emacs, Spacemacs, and vanilla Emacs 27.1+.
 - **Meeting notes** — send an org agenda entry; get a summary or action item list back as a child node
 - **Draft writing** — send org prose; receive revisions or continuations in place
 - **Research capture** — ask a question directly in your org notes; the answer lands exactly where you need it
-- **Schedule tasks** — ask Andy to set a reminder or create a scheduled NauggieClaww task (e.g. "remind me tomorrow to review the PR")
+- **Schedule tasks** — ask Andy to set a reminder or create a scheduled NauggieClaw task (e.g. "remind me tomorrow to review the PR")
 
 ## Phase 1: Pre-flight
 
@@ -108,11 +108,11 @@ AskUserQuestion: Which Emacs distribution are you using?
 **Doom Emacs** — add to `~/.config/doom/config.el` (or `~/.doom.d/config.el`):
 
 ```elisp
-;; NauggieClaww — personal AI assistant channel
+;; NauggieClaw — personal AI assistant channel
 (load (expand-file-name "~/src/nanoclaw/emacs/nanoclaw.el"))
 
 (map! :leader
-      :prefix ("N" . "NauggieClaww")
+      :prefix ("N" . "NauggieClaw")
       :desc "Chat buffer"  "c" #'nanoclaw-chat
       :desc "Send org"     "o" #'nanoclaw-org-send)
 ```
@@ -122,7 +122,7 @@ Then reload: `M-x doom/reload`
 **Spacemacs** — add to `dotspacemacs/user-config` in `~/.spacemacs`:
 
 ```elisp
-;; NauggieClaww — personal AI assistant channel
+;; NauggieClaw — personal AI assistant channel
 (load-file "~/src/nanoclaw/emacs/nanoclaw.el")
 
 (spacemacs/set-leader-keys "aNc" #'nanoclaw-chat)
@@ -134,7 +134,7 @@ Then reload: `M-x dotspacemacs/sync-configuration-layers` or restart Emacs.
 **Vanilla Emacs** — add to `~/.emacs.d/init.el` (or `~/.emacs`):
 
 ```elisp
-;; NauggieClaww — personal AI assistant channel
+;; NauggieClaw — personal AI assistant channel
 (load-file "~/src/nanoclaw/emacs/nanoclaw.el")
 
 (global-set-key (kbd "C-c n c") #'nanoclaw-chat)
@@ -155,7 +155,7 @@ If `EMACS_CHANNEL_PORT` was changed from the default, also add:
 (setq nanoclaw-port <your-port>)
 ```
 
-### Restart NauggieClaww
+### Restart NauggieClaw
 
 ```bash
 npm run build
@@ -205,7 +205,7 @@ Look for `Emacs channel listening` at startup and `Emacs message received` when 
 Error: listen EADDRINUSE: address already in use :::8766
 ```
 
-Either a stale NauggieClaww process is running, or 8766 is taken by another app.
+Either a stale NauggieClaw process is running, or 8766 is taken by another app.
 
 Find and kill the stale process:
 
@@ -218,11 +218,11 @@ Or change the port in `.env` (`EMACS_CHANNEL_PORT=8767`) and update `nanoclaw-po
 ### No response from agent
 
 Check:
-1. NauggieClaww is running: `launchctl list | grep nauggieclaw` (macOS) or `systemctl --user status nauggieclaw` (Linux)
+1. NauggieClaw is running: `launchctl list | grep nauggieclaw` (macOS) or `systemctl --user status nauggieclaw` (Linux)
 2. Emacs group is registered: `sqlite3 store/messages.db "SELECT * FROM registered_groups WHERE jid = 'emacs:default'"`
 3. Logs show activity: `tail -50 logs/nauggieclaw.log`
 
-If the group is not registered, it will be created automatically on the next NauggieClaww restart.
+If the group is not registered, it will be created automatically on the next NauggieClaw restart.
 
 ### Auth token mismatch (401 Unauthorized)
 
@@ -242,7 +242,7 @@ Check the path is correct:
 ls ~/src/nanoclaw/emacs/nanoclaw.el
 ```
 
-If NauggieClaww is cloned elsewhere, update the `load`/`load-file` path in your Emacs config.
+If NauggieClaw is cloned elsewhere, update the `load`/`load-file` path in your Emacs config.
 
 ## After Setup
 
@@ -283,7 +283,7 @@ To remove the Emacs channel:
 
 1. Delete `src/channels/emacs.ts`, `src/channels/emacs.test.ts`, and `emacs/nanoclaw.el`
 2. Remove `import './emacs.js'` from `src/channels/index.ts`
-3. Remove the NauggieClaww block from your Emacs config file
+3. Remove the NauggieClaw block from your Emacs config file
 4. Remove Emacs registration from SQLite: `sqlite3 store/messages.db "DELETE FROM registered_groups WHERE jid = 'emacs:default'"`
 5. Remove `EMACS_CHANNEL_PORT` and `EMACS_AUTH_TOKEN` from `.env` if set
 6. Rebuild: `npm run build && launchctl kickstart -k gui/$(id -u)/com.nauggieclaw` (macOS) or `npm run build && systemctl --user restart nauggieclaw` (Linux)

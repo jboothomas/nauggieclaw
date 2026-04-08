@@ -1,4 +1,4 @@
-# NauggieClaww Debug Checklist
+# NauggieClaw Debug Checklist
 
 ## Quick Status Check
 

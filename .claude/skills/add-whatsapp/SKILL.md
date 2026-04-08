@@ -5,7 +5,7 @@ description: Add WhatsApp as a channel. Can replace other channels entirely or r
 
 # Add WhatsApp Channel
 
-This skill adds WhatsApp support to NauggieClaww. It installs the WhatsApp channel code, dependencies, and guides through authentication, registration, and configuration.
+This skill adds WhatsApp support to NauggieClaw. It installs the WhatsApp channel code, dependencies, and guides through authentication, registration, and configuration.
 
 ## Phase 1: Pre-flight
 
@@ -308,7 +308,7 @@ rm -rf store/auth/ && npx tsx setup/index.ts --step whatsapp-auth -- --method qr
 
 ### "conflict" disconnection
 
-This happens when two instances connect with the same credentials. Ensure only one NauggieClaww process is running:
+This happens when two instances connect with the same credentials. Ensure only one NauggieClaw process is running:
 
 ```bash
 pkill -f "node dist/index.js"

@@ -53,7 +53,7 @@ function generateSystemdUnit(
   isSystem: boolean,
 ): string {
   return `[Unit]
-Description=NauggieClaww Personal Assistant
+Description=NauggieClaw Personal Assistant
 After=network.target
 
 [Service]

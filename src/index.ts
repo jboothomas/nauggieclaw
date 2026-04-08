@@ -420,7 +420,7 @@ async function startMessageLoop(): Promise<void> {
   }
   messageLoopRunning = true;
 
-  logger.info(`NauggieClaww running (default trigger: ${DEFAULT_TRIGGER})`);
+  logger.info(`NauggieClaw running (default trigger: ${DEFAULT_TRIGGER})`);
 
   while (true) {
     try {
@@ -733,7 +733,7 @@ const isDirectRun =
 
 if (isDirectRun) {
   main().catch((err) => {
-    logger.error({ err }, 'Failed to start NauggieClaww');
+    logger.error({ err }, 'Failed to start NauggieClaw');
     process.exit(1);
   });
 }
