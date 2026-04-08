@@ -1,11 +1,11 @@
 ---
 name: capabilities
-description: Show what this NanoClaw instance can do — installed skills, available tools, and system info. Read-only. Use when the user asks what the bot can do, what's installed, or runs /capabilities.
+description: Show what this NauggieClaww instance can do — installed skills, available tools, and system info. Read-only. Use when the user asks what the bot can do, what's installed, or runs /capabilities.
 ---
 
 # /capabilities — System Capabilities Report
 
-Generate a structured read-only report of what this NanoClaw instance can do.
+Generate a structured read-only report of what this NauggieClaww instance can do.
 
 **Main-channel check:** Only the main channel has `/workspace/project` mounted. Run:
 
@@ -27,23 +27,22 @@ Run these commands and compile the results into the report format below.
 List skill directories available to you:
 
 ```bash
-ls -1 /home/node/.claude/skills/ 2>/dev/null || echo "No skills found"
+ls -1 /workspace/skills/ 2>/dev/null || echo "No skills found"
 ```
 
 Each directory is an installed skill. The directory name is the skill name (e.g., `agent-browser` → `/agent-browser`).
 
 ### 2. Available tools
 
-Read the allowed tools from your SDK configuration. You always have access to:
-- **Core:** Bash, Read, Write, Edit, Glob, Grep
+You always have access to:
+- **Core:** Bash, filesystem tools (read, write, edit files), Glob, Grep
 - **Web:** WebSearch, WebFetch
-- **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **Other:** TodoWrite, ToolSearch, Skill, NotebookEdit
-- **MCP:** mcp__nanoclaw__* (messaging, tasks, group management)
+- **Subagents:** native parallel task execution via subagents
+- **MCP:** nauggieclaw tools (messaging, tasks, group management)
 
 ### 3. MCP server tools
 
-The NanoClaw MCP server exposes these tools (via `mcp__nanoclaw__*` prefix):
+The NauggieClaww MCP server exposes these tools:
 - `send_message` — send a message to the user/group
 - `schedule_task` — schedule a recurring or one-time task
 - `list_tasks` — list scheduled tasks
@@ -73,7 +72,7 @@ ls /workspace/extra/ 2>/dev/null && echo "Extra mounts: $(ls /workspace/extra/ 2
 Present the report as a clean, readable message. Example:
 
 ```
-📋 *NanoClaw Capabilities*
+📋 *NauggieClaww Capabilities*
 
 *Installed Skills:*
 • /agent-browser — Browse the web, fill forms, extract data
@@ -81,9 +80,9 @@ Present the report as a clean, readable message. Example:
 (list all found skills)
 
 *Tools:*
-• Core: Bash, Read, Write, Edit, Glob, Grep
+• Core: Bash, file I/O, Glob, Grep
 • Web: WebSearch, WebFetch
-• Orchestration: Task, TeamCreate, SendMessage
+• Subagents: ✓
 • MCP: send_message, schedule_task, list_tasks, pause/resume/cancel/update_task, register_group
 
 *Container Tools:*

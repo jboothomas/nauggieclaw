@@ -8,7 +8,8 @@ import { isValidTimezone } from './timezone.js';
 const envConfig = readEnvFile([
   'ASSISTANT_NAME',
   'ASSISTANT_HAS_OWN_NUMBER',
-  'ONECLI_URL',
+  'AUGMENT_SESSION_AUTH',
+  'AUGGIE_MODEL',
   'TZ',
 ]);
 
@@ -28,13 +29,13 @@ const HOME_DIR = process.env.HOME || os.homedir();
 export const MOUNT_ALLOWLIST_PATH = path.join(
   HOME_DIR,
   '.config',
-  'nanoclaw',
+  'nauggieclaw',
   'mount-allowlist.json',
 );
 export const SENDER_ALLOWLIST_PATH = path.join(
   HOME_DIR,
   '.config',
-  'nanoclaw',
+  'nauggieclaw',
   'sender-allowlist.json',
 );
 export const STORE_DIR = path.resolve(PROJECT_ROOT, 'store');
@@ -42,7 +43,7 @@ export const GROUPS_DIR = path.resolve(PROJECT_ROOT, 'groups');
 export const DATA_DIR = path.resolve(PROJECT_ROOT, 'data');
 
 export const CONTAINER_IMAGE =
-  process.env.CONTAINER_IMAGE || 'nanoclaw-agent:latest';
+  process.env.CONTAINER_IMAGE || 'nauggieclaw-agent:latest';
 export const CONTAINER_TIMEOUT = parseInt(
   process.env.CONTAINER_TIMEOUT || '1800000',
   10,
@@ -51,7 +52,17 @@ export const CONTAINER_MAX_OUTPUT_SIZE = parseInt(
   process.env.CONTAINER_MAX_OUTPUT_SIZE || '10485760',
   10,
 ); // 10MB default
-export const ONECLI_URL = process.env.ONECLI_URL || envConfig.ONECLI_URL;
+// Augment session auth token for container injection.
+// Can be set explicitly in .env as AUGMENT_SESSION_AUTH=<json>.
+// If not set, container-runner.ts fetches a fresh token via `auggie token print`.
+export const AUGMENT_SESSION_AUTH =
+  process.env.AUGMENT_SESSION_AUTH || envConfig.AUGMENT_SESSION_AUTH;
+
+// Auggie model override for container agents.
+// Set AUGGIE_MODEL=<model-id> in .env to use a specific model.
+// If unset, auggie uses the model from ~/.augment/settings.json (host default).
+export const AUGGIE_MODEL =
+  process.env.AUGGIE_MODEL || envConfig.AUGGIE_MODEL || '';
 export const MAX_MESSAGES_PER_PROMPT = Math.max(
   1,
   parseInt(process.env.MAX_MESSAGES_PER_PROMPT || '10', 10) || 10,

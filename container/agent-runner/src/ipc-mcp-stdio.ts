@@ -1,6 +1,7 @@
 /**
- * Stdio MCP Server for NanoClaw
- * Standalone process that agent teams subagents can inherit.
+ * Stdio MCP Server for NauggieClaww
+ * Launched by the agent runner via --mcp-config so the Auggie agent can call
+ * nauggieclaw tools (send_message, schedule_task, etc.) via MCP.
  * Reads context from environment variables, writes IPC files for the host.
  */
 
@@ -16,9 +17,9 @@ const MESSAGES_DIR = path.join(IPC_DIR, 'messages');
 const TASKS_DIR = path.join(IPC_DIR, 'tasks');
 
 // Context from environment variables (set by the agent runner)
-const chatJid = process.env.NANOCLAW_CHAT_JID!;
-const groupFolder = process.env.NANOCLAW_GROUP_FOLDER!;
-const isMain = process.env.NANOCLAW_IS_MAIN === '1';
+const chatJid = process.env.NAUGGIECLAW_CHAT_JID!;
+const groupFolder = process.env.NAUGGIECLAW_GROUP_FOLDER!;
+const isMain = process.env.NAUGGIECLAW_IS_MAIN === '1';
 
 function writeIpcFile(dir: string, data: object): string {
   fs.mkdirSync(dir, { recursive: true });
@@ -35,7 +36,7 @@ function writeIpcFile(dir: string, data: object): string {
 }
 
 const server = new McpServer({
-  name: 'nanoclaw',
+  name: 'nauggieclaw',
   version: '1.0.0',
 });
 

@@ -36,9 +36,9 @@ export async function run(_args: string[]): Promise<void> {
   if (mgr === 'launchd') {
     try {
       const output = execSync('launchctl list', { encoding: 'utf-8' });
-      if (output.includes('com.nanoclaw')) {
+      if (output.includes('com.nauggieclaw')) {
         // Check if it has a PID (actually running)
-        const line = output.split('\n').find((l) => l.includes('com.nanoclaw'));
+        const line = output.split('\n').find((l) => l.includes('com.nauggieclaw'));
         if (line) {
           const pidField = line.trim().split(/\s+/)[0];
           service = pidField !== '-' && pidField ? 'running' : 'stopped';
@@ -50,14 +50,14 @@ export async function run(_args: string[]): Promise<void> {
   } else if (mgr === 'systemd') {
     const prefix = isRoot() ? 'systemctl' : 'systemctl --user';
     try {
-      execSync(`${prefix} is-active nanoclaw`, { stdio: 'ignore' });
+      execSync(`${prefix} is-active nauggieclaw`, { stdio: 'ignore' });
       service = 'running';
     } catch {
       try {
         const output = execSync(`${prefix} list-unit-files`, {
           encoding: 'utf-8',
         });
-        if (output.includes('nanoclaw')) {
+        if (output.includes('nauggieclaw')) {
           service = 'stopped';
         }
       } catch {
@@ -66,7 +66,7 @@ export async function run(_args: string[]): Promise<void> {
     }
   } else {
     // Check for nohup PID file
-    const pidFile = path.join(projectRoot, 'nanoclaw.pid');
+    const pidFile = path.join(projectRoot, 'nauggieclaw.pid');
     if (fs.existsSync(pidFile)) {
       try {
         const raw = fs.readFileSync(pidFile, 'utf-8').trim();
@@ -97,12 +97,26 @@ export async function run(_args: string[]): Promise<void> {
   }
 
   // 3. Check credentials
+  // Auggie auth: prefer env var (already in environment), then .env file.
   let credentials = 'missing';
-  const envFile = path.join(projectRoot, '.env');
-  if (fs.existsSync(envFile)) {
-    const envContent = fs.readFileSync(envFile, 'utf-8');
-    if (/^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY|ONECLI_URL)=/m.test(envContent)) {
-      credentials = 'configured';
+  if (process.env.AUGMENT_SESSION_AUTH) {
+    credentials = 'configured';
+  } else {
+    const envFile = path.join(projectRoot, '.env');
+    if (fs.existsSync(envFile)) {
+      const envContent = fs.readFileSync(envFile, 'utf-8');
+      if (/^AUGMENT_SESSION_AUTH=/m.test(envContent)) {
+        credentials = 'configured';
+      }
+    }
+    // Also accept a live auggie session on the host (user ran `auggie login`)
+    if (credentials === 'missing') {
+      try {
+        execSync('auggie token print', { stdio: 'ignore', timeout: 5000 });
+        credentials = 'configured';
+      } catch {
+        // auggie not logged in
+      }
     }
   }
 
@@ -159,7 +173,7 @@ export async function run(_args: string[]): Promise<void> {
   let mountAllowlist = 'missing';
   if (
     fs.existsSync(
-      path.join(homeDir, '.config', 'nanoclaw', 'mount-allowlist.json'),
+      path.join(homeDir, '.config', 'nauggieclaw', 'mount-allowlist.json'),
     )
   ) {
     mountAllowlist = 'configured';

@@ -1,16 +1,13 @@
 #!/bin/bash
 #
-# Prune stale session artifacts (JSONLs, debug logs, todos, telemetry, group logs).
-# Safe to run while NanoClaw is live — active sessions are read from the DB.
+# Prune stale session artifacts (Auggie session JSONs, group logs).
+# Safe to run while NauggieClaww is live — active sessions are read from the DB.
 #
 # Usage:  ./scripts/cleanup-sessions.sh [--dry-run]
 #
 # Retention:
-#   Session JSONLs + tool-results:  7 days  (active session always kept)
-#   Debug logs:                     3 days
-#   Todo files:                     3 days
-#   Telemetry:                      7 days
-#   Group logs:                     7 days
+#   Auggie session JSON files:  7 days  (active session always kept)
+#   Group logs:                 7 days
 
 set -euo pipefail
 
@@ -65,16 +62,17 @@ is_active() {
   echo "$ACTIVE_IDS" | grep -qF "$1"
 }
 
-# --- Prune session JSONLs and tool-results dirs ---
+# --- Prune Auggie session JSON files (>7 days, active sessions always kept) ---
+# Sessions are stored at data/sessions/{group}/.augment/sessions/{id}.json
 
 for group_dir in "$SESSIONS_DIR"/*/; do
   [ -d "$group_dir" ] || continue
-  jsonl_dir="$group_dir/.claude/projects/-workspace-group"
-  [ -d "$jsonl_dir" ] || continue
+  augment_sessions_dir="$group_dir/.augment/sessions"
+  [ -d "$augment_sessions_dir" ] || continue
 
-  for jsonl in "$jsonl_dir"/*.jsonl; do
-    [ -f "$jsonl" ] || continue
-    id=$(basename "$jsonl" .jsonl)
+  for session_json in "$augment_sessions_dir"/*.json; do
+    [ -f "$session_json" ] || continue
+    id=$(basename "$session_json" .json)
 
     # Never delete the active session
     if is_active "$id"; then
@@ -82,57 +80,10 @@ for group_dir in "$SESSIONS_DIR"/*/; do
     fi
 
     # Only delete if older than 7 days
-    if [ -n "$(find "$jsonl" -mtime +7 2>/dev/null)" ]; then
-      remove "$jsonl"
-      # Remove matching tool-results directory
-      [ -d "$jsonl_dir/$id" ] && remove "$jsonl_dir/$id"
+    if [ -n "$(find "$session_json" -mtime +7 2>/dev/null)" ]; then
+      remove "$session_json"
     fi
   done
-done
-
-# --- Prune debug logs (>3 days, skip files named after active sessions) ---
-
-for group_dir in "$SESSIONS_DIR"/*/; do
-  debug_dir="$group_dir/.claude/debug"
-  [ -d "$debug_dir" ] || continue
-  while IFS= read -r -d '' f; do
-    fname=$(basename "$f" .txt)
-    is_active "$fname" && continue
-    remove "$f"
-  done < <(find "$debug_dir" -type f -mtime +3 ! -name "latest" -print0 2>/dev/null)
-done
-
-# --- Prune todo files (>3 days, skip files named after active sessions) ---
-
-for group_dir in "$SESSIONS_DIR"/*/; do
-  todos_dir="$group_dir/.claude/todos"
-  [ -d "$todos_dir" ] || continue
-  while IFS= read -r -d '' f; do
-    fname=$(basename "$f" .json)
-    # Todo filenames are like {session_id}-agent-{session_id}.json
-    for aid in $ACTIVE_IDS; do
-      if [[ "$fname" == *"$aid"* ]]; then
-        continue 2
-      fi
-    done
-    remove "$f"
-  done < <(find "$todos_dir" -type f -mtime +3 -print0 2>/dev/null)
-done
-
-# --- Prune telemetry (>7 days, skip files named after active sessions) ---
-
-for group_dir in "$SESSIONS_DIR"/*/; do
-  telem_dir="$group_dir/.claude/telemetry"
-  [ -d "$telem_dir" ] || continue
-  while IFS= read -r -d '' f; do
-    fname=$(basename "$f")
-    for aid in $ACTIVE_IDS; do
-      if [[ "$fname" == *"$aid"* ]]; then
-        continue 2
-      fi
-    done
-    remove "$f"
-  done < <(find "$telem_dir" -type f -mtime +7 -print0 2>/dev/null)
 done
 
 # --- Prune group logs (>7 days) ---

@@ -16,7 +16,7 @@ You are Andy, a personal assistant. You help with tasks, answer questions, and c
 
 Your output is sent to the user or group.
 
-You also have `mcp__nanoclaw__send_message` which sends a message immediately while you're still working. This is useful when you want to acknowledge a request before starting longer work.
+You also have `mcp__nauggieclaw__send_message` which sends a message immediately while you're still working. This is useful when you want to acknowledge a request before starting longer work.
 
 ### Internal thoughts
 
@@ -79,7 +79,7 @@ This is the **main channel**, which has elevated privileges.
 
 ## Authentication
 
-Anthropic credentials must be either an API key from console.anthropic.com (`ANTHROPIC_API_KEY`) or a long-lived OAuth token from `claude setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`). Short-lived tokens from the system keychain or `~/.claude/.credentials.json` expire within hours and can cause recurring container 401s. The `/setup` skill walks through this. OneCLI manages credentials (including Anthropic auth) — run `onecli --help`.
+NauggieClaww uses Auggie for agent execution inside containers. Authentication is handled via the `AUGMENT_SESSION_AUTH` environment variable, which is injected at container startup from the host's Auggie session token. To refresh credentials, run `auggie login` on the host and restart NauggieClaww.
 
 ## Container Mounts
 
@@ -223,7 +223,7 @@ After registering a group, explain the sender allowlist feature to the user:
 >
 > For closed groups with trusted members, I recommend setting up an allow-only list so only specific people can trigger me. Want me to configure that?
 
-If the user wants to set up an allowlist, edit `~/.config/nanoclaw/sender-allowlist.json` on the host:
+If the user wants to set up an allowlist, edit `~/.config/nauggieclaw/sender-allowlist.json` on the host:
 
 ```json
 {
@@ -241,18 +241,25 @@ If the user wants to set up an allowlist, edit `~/.config/nanoclaw/sender-allowl
 Notes:
 - Your own messages (`is_from_me`) explicitly bypass the allowlist in trigger checks. Bot messages are filtered out by the database query before trigger evaluation, so they never reach the allowlist.
 - If the config file doesn't exist or is invalid, all senders are allowed (fail-open)
-- The config file is on the host at `~/.config/nanoclaw/sender-allowlist.json`, not inside the container
+- The config file is on the host at `~/.config/nauggieclaw/sender-allowlist.json`, not inside the container
 
 ### Removing a Group
 
-1. Read `/workspace/project/data/registered_groups.json`
-2. Remove the entry for that group
-3. Write the updated JSON back
-4. The group folder and its files remain (don't delete them)
+Use the SQLite database to remove the group:
+
+```bash
+sqlite3 /workspace/project/store/messages.db "DELETE FROM registered_groups WHERE jid = '<jid>';"
+```
+
+The group folder and its files remain (don't delete them).
 
 ### Listing Groups
 
-Read `/workspace/project/data/registered_groups.json` and format it nicely.
+Query the SQLite database and format the results nicely:
+
+```bash
+sqlite3 /workspace/project/store/messages.db "SELECT jid, name, folder, trigger_pattern FROM registered_groups ORDER BY added_at;"
+```
 
 ---
 
@@ -264,7 +271,7 @@ You can read and write to `/workspace/global/CLAUDE.md` for facts that should ap
 
 ## Scheduling for Other Groups
 
-When scheduling tasks for other groups, use the `target_group_jid` parameter with the group's JID from `registered_groups.json`:
+When scheduling tasks for other groups, use the `target_group_jid` parameter with the group's JID from the `registered_groups` table:
 - `schedule_task(prompt: "...", schedule_type: "cron", schedule_value: "0 9 * * 1", target_group_jid: "120363336345536173@g.us")`
 
 The task will run in that group's context with access to their files and memory.
@@ -305,5 +312,5 @@ If a user wants tasks running more than ~2x daily and a script can't reduce agen
 
 - Explain that each wake-up uses API credits and risks rate limits
 - Suggest restructuring with a script that checks the condition first
-- If the user needs an LLM to evaluate data, suggest using an API key with direct Anthropic API calls inside the script
+- If the user needs an LLM to evaluate data, suggest using an API key with direct LLM API calls inside the script
 - Help the user find the minimum viable frequency

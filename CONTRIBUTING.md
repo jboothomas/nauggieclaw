@@ -4,8 +4,8 @@
 
 1. **Check for existing work.** Search open PRs and issues before starting:
    ```bash
-   gh pr list --repo qwibitai/nanoclaw --search "<your feature>"
-   gh issue list --repo qwibitai/nanoclaw --search "<your feature>"
+   gh pr list --repo jboothomas/nauggieclaw --search "<your feature>"
+   gh issue list --repo jboothomas/nauggieclaw --search "<your feature>"
    ```
    If a related PR or issue exists, build on it rather than duplicating effort.
 
@@ -21,7 +21,7 @@
 
 ## Skills
 
-NanoClaw uses [Claude Code skills](https://code.claude.com/docs/en/skills) — markdown files with optional supporting files that teach Claude how to do something. There are four types of skills in NanoClaw, each serving a different purpose.
+NauggieClaww uses skills — markdown files with optional supporting files that teach Auggie how to do something. There are four types of skills in NauggieClaww, each serving a different purpose.
 
 ### Why skills?
 
@@ -31,7 +31,7 @@ Every user should have clean and minimal code that does exactly what they need. 
 
 #### 1. Feature skills (branch-based)
 
-Add capabilities to NanoClaw by merging a git branch. The SKILL.md contains setup instructions; the actual code lives on a `skill/*` branch.
+Add capabilities to NauggieClaww by merging a git branch. The SKILL.md contains setup instructions; the actual code lives on a `skill/*` branch.
 
 **Location:** `.claude/skills/` on `main` (instructions only), code on `skill/*` branch
 
@@ -39,11 +39,11 @@ Add capabilities to NanoClaw by merging a git branch. The SKILL.md contains setu
 
 **How they work:**
 1. User runs `/add-telegram`
-2. Claude follows the SKILL.md: fetches and merges the `skill/telegram` branch
-3. Claude walks through interactive setup (env vars, bot creation, etc.)
+2. Auggie follows the SKILL.md: fetches and merges the `skill/telegram` branch
+3. Auggie walks through interactive setup (env vars, bot creation, etc.)
 
 **Contributing a feature skill:**
-1. Fork `qwibitai/nanoclaw` and branch from `main`
+1. Fork `jboothomas/nauggieclaw` and branch from `main`
 2. Make the code changes (new files, modified source, updated `package.json`, etc.)
 3. Add a SKILL.md in `.claude/skills/<name>/` with setup instructions — step 1 should be merging the branch
 4. Open a PR. We'll create the `skill/<name>` branch from your work
@@ -62,12 +62,12 @@ Standalone tools that ship code files alongside the SKILL.md. The SKILL.md tells
 
 **Guidelines:**
 - Put code in separate files, not inline in the SKILL.md
-- Use `${CLAUDE_SKILL_DIR}` to reference files in the skill directory
+- Use `${SKILL_DIR}` to reference files in the skill directory
 - SKILL.md contains installation instructions, usage docs, and troubleshooting
 
 #### 3. Operational skills (instruction-only)
 
-Workflows and guides with no code changes. The SKILL.md is the entire skill — Claude follows the instructions to perform a task.
+Workflows and guides with no code changes. The SKILL.md is the entire skill — Auggie follows the instructions to perform a task.
 
 **Location:** `.claude/skills/` on `main`
 
@@ -80,13 +80,13 @@ Workflows and guides with no code changes. The SKILL.md is the entire skill — 
 
 #### 4. Container skills (agent runtime)
 
-Skills that run inside the agent container, not on the host. These teach the container agent how to use tools, format output, or perform tasks. They are synced into each group's `.claude/skills/` directory when a container starts.
+Skills that run inside the agent container, not on the host. These teach the container agent how to use tools, format output, or perform tasks. They are mounted at `/workspace/skills/` and loaded as `--rules` files by auggie when a container starts.
 
 **Location:** `container/skills/<name>/`
 
 **Examples:** `agent-browser` (web browsing), `capabilities` (/capabilities command), `status` (/status command), `slack-formatting` (Slack mrkdwn syntax)
 
-**Key difference:** These are NOT invoked by the user on the host. They're loaded by Claude Code inside the container and influence how the agent behaves.
+**Key difference:** These are NOT invoked by the user on the host. They're loaded by auggie inside the container via `--rules` and influence how the agent behaves.
 
 **Guidelines:**
 - Follow the same SKILL.md + frontmatter format
@@ -95,7 +95,7 @@ Skills that run inside the agent container, not on the host. These teach the con
 
 ### SKILL.md format
 
-All skills use the [Claude Code skills standard](https://code.claude.com/docs/en/skills):
+All skills use the following SKILL.md format:
 
 ```markdown
 ---
@@ -109,9 +109,8 @@ Instructions here...
 **Rules:**
 - Keep SKILL.md **under 500 lines** — move detail to separate reference files
 - `name`: lowercase, alphanumeric + hyphens, max 64 chars
-- `description`: required — Claude uses this to decide when to invoke the skill
+- `description`: required — used to decide when to invoke the skill
 - Put code in separate files, not inline in the markdown
-- See the [skills standard](https://code.claude.com/docs/en/skills) for all available frontmatter fields
 
 ## Testing
 

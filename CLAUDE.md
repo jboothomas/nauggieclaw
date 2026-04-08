@@ -1,10 +1,10 @@
-# NanoClaw
+# NauggieClaww
 
-Personal Claude assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
+Personal Auggie assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
 
 ## Quick Context
 
-Single Node.js process with skill-based channel system. Channels (WhatsApp, Telegram, Slack, Discord, Gmail) are skills that self-register at startup. Messages route to Claude Agent SDK running in containers (Linux VMs). Each group has isolated filesystem and memory.
+Single Node.js process with skill-based channel system. Channels (WhatsApp, Telegram, Slack, Discord, Gmail) are skills that self-register at startup. Messages route to Auggie CLI running in containers (Linux VMs). Each group has isolated filesystem and memory.
 
 ## Key Files
 
@@ -21,13 +21,17 @@ Single Node.js process with skill-based channel system. Channels (WhatsApp, Tele
 | `groups/{name}/CLAUDE.md` | Per-group memory (isolated) |
 | `container/skills/` | Skills loaded inside agent containers (browser, status, formatting) |
 
-## Secrets / Credentials / Proxy (OneCLI)
+## Secrets / Credentials
 
-API keys, secret keys, OAuth tokens, and auth credentials are managed by the OneCLI gateway — which handles secret injection into containers at request time, so no keys or tokens are ever passed to containers directly. Run `onecli --help`.
+Auggie authentication is handled via `AUGMENT_SESSION_AUTH`. Run `auggie login` on the host to authenticate, then either:
+- Let NauggieClaww auto-inject the live session token (calls `auggie token print` at container start), or
+- Set `AUGMENT_SESSION_AUTH=<json>` in `.env` for a pinned token.
+
+No keys are ever passed to containers directly — credentials are injected as env vars at runtime.
 
 ## Skills
 
-Four types of skills exist in NanoClaw. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
+Four types of skills exist in NauggieClaww. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full taxonomy and guidelines.
 
 - **Feature skills** — merge a `skill/*` branch to add capabilities (e.g. `/add-telegram`, `/add-slack`)
 - **Utility skills** — ship code files alongside SKILL.md (e.g. `/claw`)
@@ -39,8 +43,7 @@ Four types of skills exist in NanoClaw. See [CONTRIBUTING.md](CONTRIBUTING.md) f
 | `/setup` | First-time installation, authentication, service configuration |
 | `/customize` | Adding channels, integrations, changing behavior |
 | `/debug` | Container issues, logs, troubleshooting |
-| `/update-nanoclaw` | Bring upstream NanoClaw updates into a customized install |
-| `/init-onecli` | Install OneCLI Agent Vault and migrate `.env` credentials to it |
+| `/update-nanoclaw` | Bring upstream NauggieClaww updates into a customized install |
 | `/qodo-pr-resolver` | Fetch and fix Qodo PR review issues interactively or in batch |
 | `/get-qodo-rules` | Load org- and repo-level coding rules from Qodo before code tasks |
 
@@ -61,14 +64,14 @@ npm run build        # Compile TypeScript
 Service management:
 ```bash
 # macOS (launchd)
-launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
-launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist
-launchctl kickstart -k gui/$(id -u)/com.nanoclaw  # restart
+launchctl load ~/Library/LaunchAgents/com.nauggieclaw.plist
+launchctl unload ~/Library/LaunchAgents/com.nauggieclaw.plist
+launchctl kickstart -k gui/$(id -u)/com.nauggieclaw  # restart
 
 # Linux (systemd)
-systemctl --user start nanoclaw
-systemctl --user stop nanoclaw
-systemctl --user restart nanoclaw
+systemctl --user start nauggieclaw
+systemctl --user stop nauggieclaw
+systemctl --user restart nauggieclaw
 ```
 
 ## Troubleshooting

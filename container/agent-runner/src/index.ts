@@ -1,27 +1,22 @@
 /**
- * NanoClaw Agent Runner
- * Runs inside a container, receives config via stdin, outputs result to stdout
+ * NauggieClaww Agent Runner
+ * Runs inside a container, receives config via stdin, outputs result to stdout.
+ * Uses the Auggie CLI (`auggie --print`) for agent execution.
  *
  * Input protocol:
- *   Stdin: Full ContainerInput JSON (read until EOF, like before)
+ *   Stdin: Full ContainerInput JSON (read until EOF)
  *   IPC:   Follow-up messages written as JSON files to /workspace/ipc/input/
  *          Files: {type:"message", text:"..."}.json — polled and consumed
  *          Sentinel: /workspace/ipc/input/_close — signals session end
  *
  * Stdout protocol:
- *   Each result is wrapped in OUTPUT_START_MARKER / OUTPUT_END_MARKER pairs.
- *   Multiple results may be emitted (one per agent teams result).
- *   Final marker after loop ends signals completion.
+ *   Each result is emitted as a single ContainerOutput JSON line.
+ *   Multiple lines may appear (one per agent turn).
  */
 
 import fs from 'fs';
 import path from 'path';
-import { execFile } from 'child_process';
-import {
-  query,
-  HookCallback,
-  PreCompactHookInput,
-} from '@anthropic-ai/claude-agent-sdk';
+import { execFile, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 
 interface ContainerInput {
@@ -31,7 +26,6 @@ interface ContainerInput {
   chatJid: string;
   isMain: boolean;
   isScheduledTask?: boolean;
-  assistantName?: string;
   script?: string;
 }
 
@@ -42,65 +36,12 @@ interface ContainerOutput {
   error?: string;
 }
 
-interface SessionEntry {
-  sessionId: string;
-  fullPath: string;
-  summary: string;
-  firstPrompt: string;
-}
-
-interface SessionsIndex {
-  entries: SessionEntry[];
-}
-
-interface SDKUserMessage {
-  type: 'user';
-  message: { role: 'user'; content: string };
-  parent_tool_use_id: null;
-  session_id: string;
-}
-
 const IPC_INPUT_DIR = '/workspace/ipc/input';
 const IPC_INPUT_CLOSE_SENTINEL = path.join(IPC_INPUT_DIR, '_close');
 const IPC_POLL_MS = 500;
 
-/**
- * Push-based async iterable for streaming user messages to the SDK.
- * Keeps the iterable alive until end() is called, preventing isSingleUserTurn.
- */
-class MessageStream {
-  private queue: SDKUserMessage[] = [];
-  private waiting: (() => void) | null = null;
-  private done = false;
-
-  push(text: string): void {
-    this.queue.push({
-      type: 'user',
-      message: { role: 'user', content: text },
-      parent_tool_use_id: null,
-      session_id: '',
-    });
-    this.waiting?.();
-  }
-
-  end(): void {
-    this.done = true;
-    this.waiting?.();
-  }
-
-  async *[Symbol.asyncIterator](): AsyncGenerator<SDKUserMessage> {
-    while (true) {
-      while (this.queue.length > 0) {
-        yield this.queue.shift()!;
-      }
-      if (this.done) return;
-      await new Promise<void>((r) => {
-        this.waiting = r;
-      });
-      this.waiting = null;
-    }
-  }
-}
+/** Auggie model override — set via AUGGIE_MODEL env var injected by the host. */
+const AUGGIE_MODEL = process.env.AUGGIE_MODEL || '';
 
 async function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -114,179 +55,99 @@ async function readStdin(): Promise<string> {
   });
 }
 
-const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
-const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
-
+/** Emit a ContainerOutput result line to stdout (NDJSON). */
 function writeOutput(output: ContainerOutput): void {
-  console.log(OUTPUT_START_MARKER);
   console.log(JSON.stringify(output));
-  console.log(OUTPUT_END_MARKER);
 }
 
 function log(message: string): void {
   console.error(`[agent-runner] ${message}`);
 }
 
-function getSessionSummary(
-  sessionId: string,
-  transcriptPath: string,
-): string | null {
-  const projectDir = path.dirname(transcriptPath);
-  const indexPath = path.join(projectDir, 'sessions-index.json');
-
-  if (!fs.existsSync(indexPath)) {
-    log(`Sessions index not found at ${indexPath}`);
-    return null;
-  }
-
-  try {
-    const index: SessionsIndex = JSON.parse(
-      fs.readFileSync(indexPath, 'utf-8'),
-    );
-    const entry = index.entries.find((e) => e.sessionId === sessionId);
-    if (entry?.summary) {
-      return entry.summary;
-    }
-  } catch (err) {
-    log(
-      `Failed to read sessions index: ${err instanceof Error ? err.message : String(err)}`,
-    );
-  }
-
-  return null;
+/**
+ * Write /tmp/mcp-config.json so auggie can start the IPC MCP server.
+ * The MCP server is compiled alongside index.ts into /tmp/dist/.
+ */
+function writeMcpConfig(containerInput: ContainerInput): void {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
+  const config = {
+    mcpServers: {
+      nauggieclaw: {
+        command: 'node',
+        args: [mcpServerPath],
+        env: {
+          NAUGGIECLAW_CHAT_JID: containerInput.chatJid,
+          NAUGGIECLAW_GROUP_FOLDER: containerInput.groupFolder,
+          NAUGGIECLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
+        },
+      },
+    },
+  };
+  fs.writeFileSync('/tmp/mcp-config.json', JSON.stringify(config, null, 2));
+  log(`MCP config written (server: ${mcpServerPath})`);
 }
 
 /**
- * Archive the full transcript to conversations/ before compaction.
+ * Build the base set of auggie CLI arguments shared across all turns.
+ * Session-specific flags (--resume) are added per-turn in runAuggieTurn().
  */
-function createPreCompactHook(assistantName?: string): HookCallback {
-  return async (input, _toolUseId, _context) => {
-    const preCompact = input as PreCompactHookInput;
-    const transcriptPath = preCompact.transcript_path;
-    const sessionId = preCompact.session_id;
+function buildAuggieArgs(containerInput: ContainerInput): string[] {
+  const args = [
+    '--print',
+    '--quiet',
+    '--output-format',
+    'json',
+    '--workspace-root',
+    '/workspace/group',
+    '--mcp-config',
+    '/tmp/mcp-config.json',
+  ];
 
-    if (!transcriptPath || !fs.existsSync(transcriptPath)) {
-      log('No transcript found for archiving');
-      return {};
-    }
+  // Use model override if configured on the host (via AUGGIE_MODEL env var).
+  if (AUGGIE_MODEL) {
+    args.push('--model', AUGGIE_MODEL);
+  }
 
+  // Rules files: group-level first, then global (non-main only)
+  const groupRules = '/workspace/group/CLAUDE.md';
+  if (fs.existsSync(groupRules)) {
+    args.push('--rules', groupRules);
+  }
+  const globalRules = '/workspace/global/CLAUDE.md';
+  if (!containerInput.isMain && fs.existsSync(globalRules)) {
+    args.push('--rules', globalRules);
+  }
+
+  // Container skills: auto-discover SKILL.md files under /workspace/skills/
+  // and load each as a --rules file so the agent has skill definitions as context.
+  const skillsDir = '/workspace/skills';
+  if (fs.existsSync(skillsDir)) {
     try {
-      const content = fs.readFileSync(transcriptPath, 'utf-8');
-      const messages = parseTranscript(content);
-
-      if (messages.length === 0) {
-        log('No messages to archive');
-        return {};
+      const skillDirs = fs.readdirSync(skillsDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name)
+        .sort();
+      for (const skill of skillDirs) {
+        const skillMd = path.join(skillsDir, skill, 'SKILL.md');
+        if (fs.existsSync(skillMd)) {
+          args.push('--rules', skillMd);
+        }
       }
-
-      const summary = getSessionSummary(sessionId, transcriptPath);
-      const name = summary ? sanitizeFilename(summary) : generateFallbackName();
-
-      const conversationsDir = '/workspace/group/conversations';
-      fs.mkdirSync(conversationsDir, { recursive: true });
-
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `${date}-${name}.md`;
-      const filePath = path.join(conversationsDir, filename);
-
-      const markdown = formatTranscriptMarkdown(
-        messages,
-        summary,
-        assistantName,
-      );
-      fs.writeFileSync(filePath, markdown);
-
-      log(`Archived conversation to ${filePath}`);
+      if (skillDirs.length > 0) {
+        log(`Loaded ${skillDirs.length} container skill(s): ${skillDirs.join(', ')}`);
+      }
     } catch (err) {
-      log(
-        `Failed to archive transcript: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      log(`Warning: failed to read skills directory: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    return {};
-  };
-}
-
-function sanitizeFilename(summary: string): string {
-  return summary
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 50);
-}
-
-function generateFallbackName(): string {
-  const time = new Date();
-  return `conversation-${time.getHours().toString().padStart(2, '0')}${time.getMinutes().toString().padStart(2, '0')}`;
-}
-
-interface ParsedMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-function parseTranscript(content: string): ParsedMessage[] {
-  const messages: ParsedMessage[] = [];
-
-  for (const line of content.split('\n')) {
-    if (!line.trim()) continue;
-    try {
-      const entry = JSON.parse(line);
-      if (entry.type === 'user' && entry.message?.content) {
-        const text =
-          typeof entry.message.content === 'string'
-            ? entry.message.content
-            : entry.message.content
-                .map((c: { text?: string }) => c.text || '')
-                .join('');
-        if (text) messages.push({ role: 'user', content: text });
-      } else if (entry.type === 'assistant' && entry.message?.content) {
-        const textParts = entry.message.content
-          .filter((c: { type: string }) => c.type === 'text')
-          .map((c: { text: string }) => c.text);
-        const text = textParts.join('');
-        if (text) messages.push({ role: 'assistant', content: text });
-      }
-    } catch {}
   }
 
-  return messages;
-}
+  // Allow all MCP tools from the nauggieclaw server without prompting.
+  // Using wildcard (*) is safer than listing individual tool names since auggie
+  // may prefix MCP tools differently across versions (e.g. nauggieclaw__send_message).
+  args.push('--permission', '*:allow');
 
-function formatTranscriptMarkdown(
-  messages: ParsedMessage[],
-  title?: string | null,
-  assistantName?: string,
-): string {
-  const now = new Date();
-  const formatDateTime = (d: Date) =>
-    d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
-
-  const lines: string[] = [];
-  lines.push(`# ${title || 'Conversation'}`);
-  lines.push('');
-  lines.push(`Archived: ${formatDateTime(now)}`);
-  lines.push('');
-  lines.push('---');
-  lines.push('');
-
-  for (const msg of messages) {
-    const sender = msg.role === 'user' ? 'User' : assistantName || 'Assistant';
-    const content =
-      msg.content.length > 2000
-        ? msg.content.slice(0, 2000) + '...'
-        : msg.content;
-    lines.push(`**${sender}**: ${content}`);
-    lines.push('');
-  }
-
-  return lines.join('\n');
+  return args;
 }
 
 /**
@@ -366,182 +227,111 @@ function waitForIpcMessage(): Promise<string | null> {
 }
 
 /**
- * Run a single query and stream results via writeOutput.
- * Uses MessageStream (AsyncIterable) to keep isSingleUserTurn=false,
- * allowing agent teams subagents to run to completion.
- * Also pipes IPC messages into the stream during the query.
+ * Spawn one `auggie --print` turn for the given prompt and session.
+ * Parses NDJSON stdout for result lines and calls writeOutput() for each.
+ * Returns the session_id from the final result (for the next --resume call).
  */
-async function runQuery(
+async function runAuggieTurn(
   prompt: string,
   sessionId: string | undefined,
-  mcpServerPath: string,
-  containerInput: ContainerInput,
-  sdkEnv: Record<string, string | undefined>,
-  resumeAt?: string,
-): Promise<{
-  newSessionId?: string;
-  lastAssistantUuid?: string;
-  closedDuringQuery: boolean;
-}> {
-  const stream = new MessageStream();
-  stream.push(prompt);
-
-  // Poll IPC for follow-up messages and _close sentinel during the query
-  let ipcPolling = true;
-  let closedDuringQuery = false;
-  const pollIpcDuringQuery = () => {
-    if (!ipcPolling) return;
-    if (shouldClose()) {
-      log('Close sentinel detected during query, ending stream');
-      closedDuringQuery = true;
-      stream.end();
-      ipcPolling = false;
-      return;
-    }
-    const messages = drainIpcInput();
-    for (const text of messages) {
-      log(`Piping IPC message into active query (${text.length} chars)`);
-      stream.push(text);
-    }
-    setTimeout(pollIpcDuringQuery, IPC_POLL_MS);
-  };
-  setTimeout(pollIpcDuringQuery, IPC_POLL_MS);
-
-  let newSessionId: string | undefined;
-  let lastAssistantUuid: string | undefined;
-  let messageCount = 0;
-  let resultCount = 0;
-
-  // Load global CLAUDE.md as additional system context (shared across all groups)
-  const globalClaudeMdPath = '/workspace/global/CLAUDE.md';
-  let globalClaudeMd: string | undefined;
-  if (!containerInput.isMain && fs.existsSync(globalClaudeMdPath)) {
-    globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
+  baseArgs: string[],
+): Promise<{ newSessionId?: string; isError: boolean }> {
+  const args = [...baseArgs];
+  if (sessionId) {
+    args.push('--resume', sessionId);
   }
 
-  // Discover additional directories mounted at /workspace/extra/*
-  // These are passed to the SDK so their CLAUDE.md files are loaded automatically
-  const extraDirs: string[] = [];
-  const extraBase = '/workspace/extra';
-  if (fs.existsSync(extraBase)) {
-    for (const entry of fs.readdirSync(extraBase)) {
-      const fullPath = path.join(extraBase, entry);
-      if (fs.statSync(fullPath).isDirectory()) {
-        extraDirs.push(fullPath);
-      }
-    }
-  }
-  if (extraDirs.length > 0) {
-    log(`Additional directories: ${extraDirs.join(', ')}`);
-  }
-
-  for await (const message of query({
-    prompt: stream,
-    options: {
-      cwd: '/workspace/group',
-      additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
-      resume: sessionId,
-      resumeSessionAt: resumeAt,
-      systemPrompt: globalClaudeMd
-        ? {
-            type: 'preset' as const,
-            preset: 'claude_code' as const,
-            append: globalClaudeMd,
-          }
-        : undefined,
-      allowedTools: [
-        'Bash',
-        'Read',
-        'Write',
-        'Edit',
-        'Glob',
-        'Grep',
-        'WebSearch',
-        'WebFetch',
-        'Task',
-        'TaskOutput',
-        'TaskStop',
-        'TeamCreate',
-        'TeamDelete',
-        'SendMessage',
-        'TodoWrite',
-        'ToolSearch',
-        'Skill',
-        'NotebookEdit',
-        'mcp__nanoclaw__*',
-      ],
-      env: sdkEnv,
-      permissionMode: 'bypassPermissions',
-      allowDangerouslySkipPermissions: true,
-      settingSources: ['project', 'user'],
-      mcpServers: {
-        nanoclaw: {
-          command: 'node',
-          args: [mcpServerPath],
-          env: {
-            NANOCLAW_CHAT_JID: containerInput.chatJid,
-            NANOCLAW_GROUP_FOLDER: containerInput.groupFolder,
-            NANOCLAW_IS_MAIN: containerInput.isMain ? '1' : '0',
-          },
-        },
-      },
-      hooks: {
-        PreCompact: [
-          { hooks: [createPreCompactHook(containerInput.assistantName)] },
-        ],
-      },
-    },
-  })) {
-    messageCount++;
-    const msgType =
-      message.type === 'system'
-        ? `system/${(message as { subtype?: string }).subtype}`
-        : message.type;
-    log(`[msg #${messageCount}] type=${msgType}`);
-
-    if (message.type === 'assistant' && 'uuid' in message) {
-      lastAssistantUuid = (message as { uuid: string }).uuid;
-    }
-
-    if (message.type === 'system' && message.subtype === 'init') {
-      newSessionId = message.session_id;
-      log(`Session initialized: ${newSessionId}`);
-    }
-
-    if (
-      message.type === 'system' &&
-      (message as { subtype?: string }).subtype === 'task_notification'
-    ) {
-      const tn = message as {
-        task_id: string;
-        status: string;
-        summary: string;
-      };
-      log(
-        `Task notification: task=${tn.task_id} status=${tn.status} summary=${tn.summary}`,
-      );
-    }
-
-    if (message.type === 'result') {
-      resultCount++;
-      const textResult =
-        'result' in message ? (message as { result?: string }).result : null;
-      log(
-        `Result #${resultCount}: subtype=${message.subtype}${textResult ? ` text=${textResult.slice(0, 200)}` : ''}`,
-      );
-      writeOutput({
-        status: 'success',
-        result: textResult || null,
-        newSessionId,
-      });
-    }
-  }
-
-  ipcPolling = false;
   log(
-    `Query done. Messages: ${messageCount}, results: ${resultCount}, lastAssistantUuid: ${lastAssistantUuid || 'none'}, closedDuringQuery: ${closedDuringQuery}`,
+    `Spawning auggie (session: ${sessionId || 'new'}, args: ${args.slice(0, 6).join(' ')}...)`,
   );
-  return { newSessionId, lastAssistantUuid, closedDuringQuery };
+
+  return new Promise((resolve) => {
+    const auggie = spawn('auggie', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+
+    // Write prompt to auggie's stdin (auggie reads it when -i is not given)
+    auggie.stdin.write(prompt, 'utf8');
+    auggie.stdin.end();
+
+    let lineBuffer = '';
+    let newSessionId: string | undefined;
+    let isError = false;
+    let hadResult = false;
+
+    const processLine = (line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      try {
+        const parsed: {
+          type: string;
+          result?: string;
+          is_error?: boolean;
+          session_id?: string;
+        } = JSON.parse(trimmed);
+
+        if (parsed.type === 'result') {
+          hadResult = true;
+          if (parsed.session_id) newSessionId = parsed.session_id;
+          const error = parsed.is_error === true;
+          if (error) isError = true;
+
+          writeOutput({
+            status: error ? 'error' : 'success',
+            result: parsed.result ?? null,
+            newSessionId: parsed.session_id,
+            error: error ? (parsed.result ?? 'Auggie reported an error') : undefined,
+          });
+
+          log(
+            `Turn result: ${error ? 'ERROR' : 'OK'} session=${parsed.session_id ?? 'none'} len=${parsed.result?.length ?? 0}`,
+          );
+        }
+      } catch {
+        // Non-JSON stdout line — auggie may emit progress lines in some modes
+      }
+    };
+
+    auggie.stdout.on('data', (data: Buffer) => {
+      lineBuffer += data.toString('utf8');
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
+      for (const line of lines) processLine(line);
+    });
+
+    auggie.stderr.on('data', (data: Buffer) => {
+      for (const line of data.toString('utf8').split('\n')) {
+        if (line.trim()) log(`[auggie] ${line}`);
+      }
+    });
+
+    auggie.on('close', (code) => {
+      // Flush any remaining buffered output
+      if (lineBuffer.trim()) processLine(lineBuffer);
+
+      if (code !== 0 && !hadResult) {
+        log(`Auggie exited with code ${code} and no result`);
+        isError = true;
+        writeOutput({
+          status: 'error',
+          result: null,
+          error: `Auggie process exited with code ${code}`,
+        });
+      }
+
+      log(`Auggie process done (code=${code}, isError=${isError})`);
+      resolve({ newSessionId, isError });
+    });
+
+    auggie.on('error', (err: Error) => {
+      log(`Auggie spawn error: ${err.message}`);
+      isError = true;
+      writeOutput({
+        status: 'error',
+        result: null,
+        error: `Auggie spawn error: ${err.message}`,
+      });
+      resolve({ newSessionId, isError: true });
+    });
+  });
 }
 
 interface ScriptResult {
@@ -621,15 +411,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // Credentials are injected by the host's credential proxy via ANTHROPIC_BASE_URL.
-  // No real secrets exist in the container environment.
-  const sdkEnv: Record<string, string | undefined> = {
-    ...process.env,
-    CLAUDE_CODE_AUTO_COMPACT_WINDOW: '165000',
-  };
-
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const mcpServerPath = path.join(__dirname, 'ipc-mcp-stdio.js');
+  // Write MCP config and build base auggie args (reused every turn)
+  writeMcpConfig(containerInput);
+  const auggieBaseArgs = buildAuggieArgs(containerInput);
 
   let sessionId = containerInput.sessionId;
   fs.mkdirSync(IPC_INPUT_DIR, { recursive: true });
@@ -641,88 +425,77 @@ async function main(): Promise<void> {
     /* ignore */
   }
 
-  // Build initial prompt (drain any pending IPC messages too)
+  // Build initial prompt (drain any pre-queued IPC messages too)
   let prompt = containerInput.prompt;
   if (containerInput.isScheduledTask) {
     prompt = `[SCHEDULED TASK - The following message was sent automatically and is not coming directly from the user or group.]\n\n${prompt}`;
   }
-  const pending = drainIpcInput();
-  if (pending.length > 0) {
-    log(`Draining ${pending.length} pending IPC messages into initial prompt`);
-    prompt += '\n' + pending.join('\n');
+  const preQueued = drainIpcInput();
+  if (preQueued.length > 0) {
+    log(`Draining ${preQueued.length} pending IPC messages into initial prompt`);
+    prompt += '\n' + preQueued.join('\n');
   }
 
-  // Script phase: run script before waking agent
+  // Script phase: run script before waking the agent
   if (containerInput.script && containerInput.isScheduledTask) {
     log('Running task script...');
     const scriptResult = await runScript(containerInput.script);
 
     if (!scriptResult || !scriptResult.wakeAgent) {
-      const reason = scriptResult
-        ? 'wakeAgent=false'
-        : 'script error/no output';
+      const reason = scriptResult ? 'wakeAgent=false' : 'script error/no output';
       log(`Script decided not to wake agent: ${reason}`);
-      writeOutput({
-        status: 'success',
-        result: null,
-      });
+      writeOutput({ status: 'success', result: null });
       return;
     }
 
-    // Script says wake agent — enrich prompt with script data
-    log(`Script wakeAgent=true, enriching prompt with data`);
+    log('Script wakeAgent=true, enriching prompt with data');
     prompt = `[SCHEDULED TASK]\n\nScript output:\n${JSON.stringify(scriptResult.data, null, 2)}\n\nInstructions:\n${containerInput.prompt}`;
   }
 
-  // Query loop: run query → wait for IPC message → run new query → repeat
-  let resumeAt: string | undefined;
+  // Turn loop: run auggie → check IPC → run auggie again → repeat
   try {
     while (true) {
-      log(
-        `Starting query (session: ${sessionId || 'new'}, resumeAt: ${resumeAt || 'latest'})...`,
-      );
-
-      const queryResult = await runQuery(
+      const { newSessionId, isError } = await runAuggieTurn(
         prompt,
         sessionId,
-        mcpServerPath,
-        containerInput,
-        sdkEnv,
-        resumeAt,
+        auggieBaseArgs,
       );
-      if (queryResult.newSessionId) {
-        sessionId = queryResult.newSessionId;
-      }
-      if (queryResult.lastAssistantUuid) {
-        resumeAt = queryResult.lastAssistantUuid;
-      }
+      if (newSessionId) sessionId = newSessionId;
 
-      // If _close was consumed during the query, exit immediately.
-      // Don't emit a session-update marker (it would reset the host's
-      // idle timer and cause a 30-min delay before the next _close).
-      if (queryResult.closedDuringQuery) {
-        log('Close sentinel consumed during query, exiting');
+      if (isError) {
+        log('Auggie error, exiting turn loop');
         break;
       }
 
-      // Emit session update so host can track it
+      // Check for _close or messages that arrived during the auggie run
+      if (shouldClose()) {
+        log('Close sentinel found after turn, exiting');
+        break;
+      }
+
+      const arrived = drainIpcInput();
+      if (arrived.length > 0) {
+        log(`${arrived.length} message(s) queued during turn, running next turn`);
+        prompt = arrived.join('\n');
+        continue;
+      }
+
+      // Emit idle marker so the host can start its idle timer
       writeOutput({ status: 'success', result: null, newSessionId: sessionId });
 
-      log('Query ended, waiting for next IPC message...');
-
-      // Wait for the next message or _close sentinel
+      log('Idle — waiting for next IPC message...');
       const nextMessage = await waitForIpcMessage();
       if (nextMessage === null) {
         log('Close sentinel received, exiting');
         break;
       }
 
-      log(`Got new message (${nextMessage.length} chars), starting new query`);
+      log(`New message arrived (${nextMessage.length} chars), starting next turn`);
       prompt = nextMessage;
     }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    log(`Agent error: ${errorMessage}`);
+    log(`Turn loop error: ${errorMessage}`);
     writeOutput({
       status: 'error',
       result: null,
@@ -730,7 +503,87 @@ async function main(): Promise<void> {
       error: errorMessage,
     });
     process.exit(1);
+  } finally {
+    // Archive the conversation transcript after the turn loop exits.
+    // Replaces the old PreCompact hook — writes a dated markdown file to
+    // /workspace/group/conversations/ so the agent can search past sessions.
+    if (sessionId) {
+      archiveSession(sessionId, containerInput.groupFolder).catch((err) => {
+        log(`Session archive failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
   }
+}
+
+/**
+ * Read the auggie session JSON and write a human-readable markdown transcript
+ * to /workspace/group/conversations/<date>-<sessionId-prefix>.md
+ */
+async function archiveSession(sessionId: string, groupFolder: string): Promise<void> {
+  const HOME = process.env.HOME || '/home/node';
+  const sessionFile = path.join(HOME, '.augment', 'sessions', `${sessionId}.json`);
+
+  if (!fs.existsSync(sessionFile)) {
+    log(`Session file not found for archiving: ${sessionFile}`);
+    return;
+  }
+
+  interface ChatExchange {
+    request_message?: string;
+    response_text?: string;
+  }
+  interface SessionData {
+    sessionId?: string;
+    created?: string;
+    chatHistory?: Array<{ exchange?: ChatExchange }>;
+  }
+
+  const raw = fs.readFileSync(sessionFile, 'utf-8');
+  const data: SessionData = JSON.parse(raw);
+  const history = data.chatHistory ?? [];
+
+  if (history.length === 0) {
+    log(`Session ${sessionId} has no chat history — skipping archive`);
+    return;
+  }
+
+  const conversationsDir = '/workspace/group/conversations';
+  fs.mkdirSync(conversationsDir, { recursive: true });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const idPrefix = sessionId.slice(0, 8);
+  const filename = `${dateStr}-${idPrefix}.md`;
+  const filepath = path.join(conversationsDir, filename);
+
+  // Build markdown lines
+  const lines: string[] = [
+    `# Conversation — ${dateStr}`,
+    ``,
+    `Session: \`${sessionId}\`  `,
+    `Group: \`${groupFolder}\`  `,
+    `Created: ${data.created ?? 'unknown'}`,
+    ``,
+    `---`,
+    ``,
+  ];
+
+  for (const entry of history) {
+    const ex = entry.exchange;
+    if (!ex) continue;
+    if (ex.request_message) {
+      lines.push(`**User:** ${ex.request_message.trim()}`);
+      lines.push('');
+    }
+    if (ex.response_text) {
+      lines.push(`**Assistant:** ${ex.response_text.trim()}`);
+      lines.push('');
+    }
+    lines.push('---');
+    lines.push('');
+  }
+
+  fs.writeFileSync(filepath, lines.join('\n'));
+  log(`Session archived to ${filepath} (${history.length} exchange(s))`);
 }
 
 main();

@@ -1,19 +1,21 @@
 /**
- * Container Runner for NanoClaw
+ * Container Runner for NauggieClaww
  * Spawns agent execution in containers and handles IPC
  */
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, execFile, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { promisify } from 'util';
 
 import {
+  AUGGIE_MODEL,
+  AUGMENT_SESSION_AUTH,
   CONTAINER_IMAGE,
   CONTAINER_MAX_OUTPUT_SIZE,
   CONTAINER_TIMEOUT,
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
-  ONECLI_URL,
   TIMEZONE,
 } from './config.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
@@ -24,15 +26,10 @@ import {
   readonlyMountArgs,
   stopContainer,
 } from './container-runtime.js';
-import { OneCLI } from '@onecli-sh/sdk';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
-const onecli = new OneCLI({ url: ONECLI_URL });
-
-// Sentinel markers for robust output parsing (must match agent-runner)
-const OUTPUT_START_MARKER = '---NANOCLAW_OUTPUT_START---';
-const OUTPUT_END_MARKER = '---NANOCLAW_OUTPUT_END---';
+const execFileAsync = promisify(execFile);
 
 export interface ContainerInput {
   prompt: string;
@@ -41,7 +38,6 @@ export interface ContainerInput {
   chatJid: string;
   isMain: boolean;
   isScheduledTask?: boolean;
-  assistantName?: string;
   script?: string;
 }
 
@@ -68,7 +64,7 @@ function buildVolumeMounts(
 
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs
-    // (store, group folder, IPC, .claude/) are mounted separately below.
+    // (store, group folder, IPC, sessions) are mounted separately below.
     // Read-only prevents the agent from modifying host application code
     // (src/, dist/, package.json, etc.) which would bypass the sandbox
     // entirely on next restart.
@@ -79,7 +75,7 @@ function buildVolumeMounts(
     });
 
     // Shadow .env so the agent cannot read secrets from the mounted project root.
-    // Credentials are injected by the OneCLI gateway, never exposed to containers.
+    // Credentials are injected via AUGMENT_SESSION_AUTH env var, never exposed to containers.
     const envFile = path.join(projectRoot, '.env');
     if (fs.existsSync(envFile)) {
       mounts.push({
@@ -134,55 +130,33 @@ function buildVolumeMounts(
     }
   }
 
-  // Per-group Claude sessions directory (isolated from other groups)
-  // Each group gets their own .claude/ to prevent cross-group session access
+  // Per-group Auggie sessions directory (isolated between groups).
+  // Auggie stores conversation history as JSON files in $HOME/.augment/sessions/.
+  // HOME is always set to /home/node in the container so the path is predictable.
   const groupSessionsDir = path.join(
     DATA_DIR,
     'sessions',
     group.folder,
-    '.claude',
+    '.augment',
+    'sessions',
   );
   fs.mkdirSync(groupSessionsDir, { recursive: true });
-  const settingsFile = path.join(groupSessionsDir, 'settings.json');
-  if (!fs.existsSync(settingsFile)) {
-    fs.writeFileSync(
-      settingsFile,
-      JSON.stringify(
-        {
-          env: {
-            // Enable agent swarms (subagent orchestration)
-            // https://code.claude.com/docs/en/agent-teams#orchestrate-teams-of-claude-code-sessions
-            CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
-            // Load CLAUDE.md from additional mounted directories
-            // https://code.claude.com/docs/en/memory#load-memory-from-additional-directories
-            CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1',
-            // Enable Claude's memory feature (persists user preferences between sessions)
-            // https://code.claude.com/docs/en/memory#manage-auto-memory
-            CLAUDE_CODE_DISABLE_AUTO_MEMORY: '0',
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-    );
-  }
-
-  // Sync skills from container/skills/ into each group's .claude/skills/
-  const skillsSrc = path.join(process.cwd(), 'container', 'skills');
-  const skillsDst = path.join(groupSessionsDir, 'skills');
-  if (fs.existsSync(skillsSrc)) {
-    for (const skillDir of fs.readdirSync(skillsSrc)) {
-      const srcDir = path.join(skillsSrc, skillDir);
-      if (!fs.statSync(srcDir).isDirectory()) continue;
-      const dstDir = path.join(skillsDst, skillDir);
-      fs.cpSync(srcDir, dstDir, { recursive: true });
-    }
-  }
   mounts.push({
     hostPath: groupSessionsDir,
-    containerPath: '/home/node/.claude',
+    containerPath: '/home/node/.augment/sessions',
     readonly: false,
   });
+
+  // Container skills — read-only, shared across all groups.
+  // Mounted at /workspace/skills/ so the agent-runner can discover and load them as --rules.
+  const containerSkillsDir = path.join(projectRoot, 'container', 'skills');
+  if (fs.existsSync(containerSkillsDir)) {
+    mounts.push({
+      hostPath: containerSkillsDir,
+      containerPath: '/workspace/skills',
+      readonly: true,
+    });
+  }
 
   // Per-group IPC namespace: each group gets its own IPC directory
   // This prevents cross-group privilege escalation via IPC
@@ -242,42 +216,71 @@ function buildVolumeMounts(
   return mounts;
 }
 
+/**
+ * Resolve the Augment session auth token for container injection.
+ * Prefers the AUGMENT_SESSION_AUTH env var (set in .env or environment).
+ * Falls back to a fresh token from `auggie token print` so the token is
+ * always valid even if the .env value is stale.
+ */
+async function resolveAugmentSessionAuth(): Promise<string | undefined> {
+  if (process.env.AUGMENT_SESSION_AUTH) {
+    return process.env.AUGMENT_SESSION_AUTH;
+  }
+  try {
+    const { stdout } = await execFileAsync('auggie', ['token', 'print'], {
+      timeout: 5000,
+    });
+    const match = stdout.match(/^SESSION=(.+)$/m);
+    if (match) return match[1].trim();
+    logger.warn('auggie token print: SESSION= line not found in output');
+  } catch (err) {
+    logger.warn(
+      { err },
+      'auggie token print failed — container will have no Augment credentials',
+    );
+  }
+  return undefined;
+}
+
 async function buildContainerArgs(
   mounts: VolumeMount[],
   containerName: string,
-  agentIdentifier?: string,
 ): Promise<string[]> {
   const args: string[] = ['run', '-i', '--rm', '--name', containerName];
 
   // Pass host timezone so container's local time matches the user's
   args.push('-e', `TZ=${TIMEZONE}`);
 
-  // OneCLI gateway handles credential injection — containers never see real secrets.
-  // The gateway intercepts HTTPS traffic and injects API keys or OAuth tokens.
-  const onecliApplied = await onecli.applyContainerConfig(args, {
-    addHostMapping: false, // Nanoclaw already handles host gateway
-    agent: agentIdentifier,
-  });
-  if (onecliApplied) {
-    logger.info({ containerName }, 'OneCLI gateway config applied');
+  // Inject Augment session credentials — container never stores secrets.
+  const sessionAuth = await resolveAugmentSessionAuth();
+  if (sessionAuth) {
+    args.push('-e', `AUGMENT_SESSION_AUTH=${sessionAuth}`);
+    logger.info({ containerName }, 'Augment session auth injected');
   } else {
     logger.warn(
       { containerName },
-      'OneCLI gateway not reachable — container will have no credentials',
+      'No Augment session auth — container may be unable to connect',
     );
   }
 
   // Runtime-specific args for host gateway resolution
   args.push(...hostGatewayArgs());
 
-  // Run as host user so bind-mounted files are accessible.
-  // Skip when running as root (uid 0), as the container's node user (uid 1000),
-  // or when getuid is unavailable (native Windows without WSL).
+  // Always set HOME=/home/node so auggie stores sessions at a predictable path
+  // that matches our volume mount (/home/node/.augment/sessions).
+  args.push('-e', 'HOME=/home/node');
+
+  // Forward model override if configured — auggie uses its own default otherwise.
+  if (AUGGIE_MODEL) {
+    args.push('-e', `AUGGIE_MODEL=${AUGGIE_MODEL}`);
+  }
+
+  // Run as host user so bind-mounted files are owned correctly.
+  // Skip when running as root (uid 0) or as the container's node user (uid 1000).
   const hostUid = process.getuid?.();
   const hostGid = process.getgid?.();
   if (hostUid != null && hostUid !== 0 && hostUid !== 1000) {
     args.push('--user', `${hostUid}:${hostGid}`);
-    args.push('-e', 'HOME=/home/node');
   }
 
   for (const mount of mounts) {
@@ -306,16 +309,8 @@ export async function runContainerAgent(
 
   const mounts = buildVolumeMounts(group, input.isMain);
   const safeName = group.folder.replace(/[^a-zA-Z0-9-]/g, '-');
-  const containerName = `nanoclaw-${safeName}-${Date.now()}`;
-  // Main group uses the default OneCLI agent; others use their own agent.
-  const agentIdentifier = input.isMain
-    ? undefined
-    : group.folder.toLowerCase().replace(/_/g, '-');
-  const containerArgs = await buildContainerArgs(
-    mounts,
-    containerName,
-    agentIdentifier,
-  );
+  const containerName = `nauggieclaw-${safeName}-${Date.now()}`;
+  const containerArgs = await buildContainerArgs(mounts, containerName);
 
   logger.debug(
     {
@@ -358,15 +353,16 @@ export async function runContainerAgent(
     container.stdin.write(JSON.stringify(input));
     container.stdin.end();
 
-    // Streaming output: parse OUTPUT_START/END marker pairs as they arrive
-    let parseBuffer = '';
+    // Streaming output: parse NDJSON lines emitted by the agent runner.
+    // Each line is a complete ContainerOutput JSON object.
+    let lineBuffer = '';
     let newSessionId: string | undefined;
     let outputChain = Promise.resolve();
 
     container.stdout.on('data', (data) => {
       const chunk = data.toString();
 
-      // Always accumulate for logging
+      // Accumulate for logging
       if (!stdoutTruncated) {
         const remaining = CONTAINER_MAX_OUTPUT_SIZE - stdout.length;
         if (chunk.length > remaining) {
@@ -381,36 +377,32 @@ export async function runContainerAgent(
         }
       }
 
-      // Stream-parse for output markers
-      if (onOutput) {
-        parseBuffer += chunk;
-        let startIdx: number;
-        while ((startIdx = parseBuffer.indexOf(OUTPUT_START_MARKER)) !== -1) {
-          const endIdx = parseBuffer.indexOf(OUTPUT_END_MARKER, startIdx);
-          if (endIdx === -1) break; // Incomplete pair, wait for more data
+      // Stream-parse NDJSON result lines
+      lineBuffer += chunk;
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
 
-          const jsonStr = parseBuffer
-            .slice(startIdx + OUTPUT_START_MARKER.length, endIdx)
-            .trim();
-          parseBuffer = parseBuffer.slice(endIdx + OUTPUT_END_MARKER.length);
-
-          try {
-            const parsed: ContainerOutput = JSON.parse(jsonStr);
-            if (parsed.newSessionId) {
-              newSessionId = parsed.newSessionId;
-            }
-            hadStreamingOutput = true;
-            // Activity detected — reset the hard timeout
-            resetTimeout();
-            // Call onOutput for all markers (including null results)
-            // so idle timers start even for "silent" query completions.
-            outputChain = outputChain.then(() => onOutput(parsed));
-          } catch (err) {
-            logger.warn(
-              { group: group.name, error: err },
-              'Failed to parse streamed output chunk',
-            );
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const parsed: ContainerOutput = JSON.parse(trimmed);
+          if (parsed.newSessionId) {
+            newSessionId = parsed.newSessionId;
           }
+          hadStreamingOutput = true;
+          // Activity detected — reset the hard timeout
+          resetTimeout();
+          if (onOutput) {
+            // Deliver every result line (including null/idle markers)
+            // so host idle timers fire even for silent query completions.
+            outputChain = outputChain.then(() => onOutput(parsed));
+          }
+        } catch (err) {
+          logger.warn(
+            { group: group.name, line: trimmed.slice(0, 200), error: err },
+            'Failed to parse NDJSON output line',
+          );
         }
       }
     });
@@ -421,8 +413,8 @@ export async function runContainerAgent(
       for (const line of lines) {
         if (line) logger.debug({ container: group.folder }, line);
       }
-      // Don't reset timeout on stderr — SDK writes debug logs continuously.
-      // Timeout only resets on actual output (OUTPUT_MARKER in stdout).
+      // Don't reset timeout on stderr — auggie writes debug logs continuously.
+      // Timeout only resets on actual NDJSON result lines in stdout.
       if (stderrTruncated) return;
       const remaining = CONTAINER_MAX_OUTPUT_SIZE - stderr.length;
       if (chunk.length > remaining) {
@@ -609,69 +601,19 @@ export async function runContainerAgent(
         return;
       }
 
-      // Streaming mode: wait for output chain to settle, return completion marker
-      if (onOutput) {
-        outputChain.then(() => {
-          logger.info(
-            { group: group.name, duration, newSessionId },
-            'Container completed (streaming mode)',
-          );
-          resolve({
-            status: 'success',
-            result: null,
-            newSessionId,
-          });
-        });
-        return;
-      }
-
-      // Legacy mode: parse the last output marker pair from accumulated stdout
-      try {
-        // Extract JSON between sentinel markers for robust parsing
-        const startIdx = stdout.indexOf(OUTPUT_START_MARKER);
-        const endIdx = stdout.indexOf(OUTPUT_END_MARKER);
-
-        let jsonLine: string;
-        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-          jsonLine = stdout
-            .slice(startIdx + OUTPUT_START_MARKER.length, endIdx)
-            .trim();
-        } else {
-          // Fallback: last non-empty line (backwards compatibility)
-          const lines = stdout.trim().split('\n');
-          jsonLine = lines[lines.length - 1];
-        }
-
-        const output: ContainerOutput = JSON.parse(jsonLine);
-
+      // Wait for the NDJSON output delivery chain to flush, then resolve.
+      // Results were already parsed and delivered in the stdout handler above.
+      outputChain.then(() => {
         logger.info(
-          {
-            group: group.name,
-            duration,
-            status: output.status,
-            hasResult: !!output.result,
-          },
+          { group: group.name, duration, newSessionId },
           'Container completed',
         );
-
-        resolve(output);
-      } catch (err) {
-        logger.error(
-          {
-            group: group.name,
-            stdout,
-            stderr,
-            error: err,
-          },
-          'Failed to parse container output',
-        );
-
         resolve({
-          status: 'error',
+          status: 'success',
           result: null,
-          error: `Failed to parse container output: ${err instanceof Error ? err.message : String(err)}`,
+          newSessionId,
         });
-      }
+      });
     });
 
     container.on('error', (err) => {

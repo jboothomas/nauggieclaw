@@ -47,17 +47,17 @@ ls /workspace/ipc/ 2>/dev/null
 
 Confirm which tool families are available to you:
 
-- **Core:** Bash, Read, Write, Edit, Glob, Grep
+- **Core:** Bash, filesystem tools (read, write, edit files), Glob, Grep
 - **Web:** WebSearch, WebFetch
-- **Orchestration:** Task, TaskOutput, TaskStop, TeamCreate, TeamDelete, SendMessage
-- **MCP:** mcp__nanoclaw__* (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, register_group)
+- **Subagents:** native parallel task execution
+- **MCP:** nauggieclaw tools (send_message, schedule_task, list_tasks, pause_task, resume_task, cancel_task, update_task, register_group)
 
 ### 4. Container utilities
 
 ```bash
 which agent-browser 2>/dev/null && echo "agent-browser: available" || echo "agent-browser: not installed"
 node --version 2>/dev/null
-claude --version 2>/dev/null
+auggie --version 2>/dev/null
 ```
 
 ### 5. Task snapshot
@@ -65,7 +65,7 @@ claude --version 2>/dev/null
 Use the MCP tool to list tasks:
 
 ```
-Call mcp__nanoclaw__list_tasks to get scheduled tasks.
+Call mcp__nauggieclaw__list_tasks to get scheduled tasks.
 ```
 
 If no tasks exist, report "No scheduled tasks."
@@ -75,7 +75,7 @@ If no tasks exist, report "No scheduled tasks."
 Present as a clean, readable message:
 
 ```
-🔍 *NanoClaw Status*
+🔍 *NauggieClaww Status*
 
 *Session:*
 • Channel: main
@@ -88,12 +88,12 @@ Present as a clean, readable message:
 • IPC: ✓ (messages, tasks, input)
 
 *Tools:*
-• Core: ✓  Web: ✓  Orchestration: ✓  MCP: ✓
+• Core: ✓  Web: ✓  Subagents: ✓  MCP: ✓
 
 *Container:*
 • agent-browser: ✓ / not installed
 • Node: vXX.X.X
-• Claude Code: vX.X.X
+• Auggie: vX.X.X
 
 *Scheduled Tasks:*
 • N active tasks / No scheduled tasks

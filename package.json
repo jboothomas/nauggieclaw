@@ -1,7 +1,7 @@
 {
-  "name": "nanoclaw",
+  "name": "nauggieclaw",
   "version": "1.2.52",
-  "description": "Personal Claude assistant. Lightweight, secure, customizable.",
+  "description": "Personal Auggie assistant. Lightweight, secure, customizable.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

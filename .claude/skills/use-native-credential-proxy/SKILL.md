@@ -5,7 +5,7 @@ description: Replace OneCLI gateway with the built-in credential proxy. For user
 
 # Use Native Credential Proxy
 
-This skill replaces the OneCLI gateway with NanoClaw's built-in credential proxy. Containers get credentials injected via a local HTTP proxy that reads from `.env` — no external services needed.
+This skill replaces the OneCLI gateway with NauggieClaww's built-in credential proxy. Containers get credentials injected via a local HTTP proxy that reads from `.env` — no external services needed.
 
 ## Phase 1: Pre-flight
 
@@ -40,7 +40,7 @@ git remote -v
 If `upstream` is missing, add it:
 
 ```bash
-git remote add upstream https://github.com/qwibitai/nanoclaw.git
+git remote add upstream https://github.com/jboothomas/nauggieclaw.git
 ```
 
 ### Merge the skill branch
@@ -129,14 +129,14 @@ npm run build
 ```
 
 Then restart the service:
-- macOS: `launchctl kickstart -k gui/$(id -u)/com.nanoclaw`
-- Linux: `systemctl --user restart nanoclaw`
-- WSL/manual: stop and re-run `bash start-nanoclaw.sh`
+- macOS: `launchctl kickstart -k gui/$(id -u)/com.nauggieclaw`
+- Linux: `systemctl --user restart nauggieclaw`
+- WSL/manual: stop and re-run `bash start-nauggieclaw.sh`
 
 2. Check logs for successful proxy startup:
 
 ```bash
-tail -20 logs/nanoclaw.log | grep "Credential proxy"
+tail -20 logs/nauggieclaw.log | grep "Credential proxy"
 ```
 
 Expected: `Credential proxy started` with port and auth mode.

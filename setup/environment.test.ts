@@ -73,25 +73,22 @@ describe('registered groups DB query', () => {
 });
 
 describe('credentials detection', () => {
-  it('detects ANTHROPIC_API_KEY in env content', () => {
+  it('detects AUGMENT_SESSION_AUTH in env content', () => {
     const content =
-      'SOME_KEY=value\nANTHROPIC_API_KEY=sk-ant-test123\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
+      'SOME_KEY=value\nAUGMENT_SESSION_AUTH={"accessToken":"tok"}\nOTHER=foo';
+    const hasCredentials = /^AUGMENT_SESSION_AUTH=/m.test(content);
     expect(hasCredentials).toBe(true);
   });
 
-  it('detects CLAUDE_CODE_OAUTH_TOKEN in env content', () => {
-    const content = 'CLAUDE_CODE_OAUTH_TOKEN=token123';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
-    expect(hasCredentials).toBe(true);
+  it('returns false when only old Claude credentials present', () => {
+    const content = 'ANTHROPIC_API_KEY=sk-ant-test123\nCLAUDE_CODE_OAUTH_TOKEN=token';
+    const hasCredentials = /^AUGMENT_SESSION_AUTH=/m.test(content);
+    expect(hasCredentials).toBe(false);
   });
 
   it('returns false when no credentials', () => {
     const content = 'ASSISTANT_NAME="Andy"\nOTHER=foo';
-    const hasCredentials =
-      /^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=/m.test(content);
+    const hasCredentials = /^AUGMENT_SESSION_AUTH=/m.test(content);
     expect(hasCredentials).toBe(false);
   });
 });

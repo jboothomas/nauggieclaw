@@ -1,8 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-import { OneCLI } from '@onecli-sh/sdk';
-
 import {
   ASSISTANT_NAME,
   DEFAULT_TRIGGER,
@@ -10,7 +8,6 @@ import {
   GROUPS_DIR,
   IDLE_TIMEOUT,
   MAX_MESSAGES_PER_PROMPT,
-  ONECLI_URL,
   POLL_INTERVAL,
   TIMEZONE,
 } from './config.js';
@@ -78,26 +75,6 @@ let messageLoopRunning = false;
 const channels: Channel[] = [];
 const queue = new GroupQueue();
 
-const onecli = new OneCLI({ url: ONECLI_URL });
-
-function ensureOneCLIAgent(jid: string, group: RegisteredGroup): void {
-  if (group.isMain) return;
-  const identifier = group.folder.toLowerCase().replace(/_/g, '-');
-  onecli.ensureAgent({ name: group.name, identifier }).then(
-    (res) => {
-      logger.info(
-        { jid, identifier, created: res.created },
-        'OneCLI agent ensured',
-      );
-    },
-    (err) => {
-      logger.debug(
-        { jid, identifier, err: String(err) },
-        'OneCLI agent ensure skipped',
-      );
-    },
-  );
-}
 
 function loadState(): void {
   lastTimestamp = getRouterState('last_timestamp') || '';
@@ -179,9 +156,6 @@ function registerGroup(jid: string, group: RegisteredGroup): void {
       logger.info({ folder: group.folder }, 'Created CLAUDE.md from template');
     }
   }
-
-  // Ensure a corresponding OneCLI agent exists (best-effort, non-blocking)
-  ensureOneCLIAgent(jid, group);
 
   logger.info(
     { jid, name: group.name, folder: group.folder },
@@ -391,7 +365,6 @@ async function runAgent(
         groupFolder: group.folder,
         chatJid,
         isMain,
-        assistantName: ASSISTANT_NAME,
       },
       (proc, containerName) =>
         queue.registerProcess(chatJid, proc, containerName, group.folder),
@@ -405,13 +378,15 @@ async function runAgent(
 
     if (output.status === 'error') {
       // Detect stale/corrupt session — clear it so the next retry starts fresh.
-      // The session .jsonl can go missing after a crash mid-write, manual
+      // The session .json can go missing after a crash mid-write, manual
       // deletion, or disk-full. The existing backoff in group-queue.ts
       // handles the retry; we just need to remove the broken session ID.
+      // Auggie-specific patterns: "session not found", "failed to resume",
+      // "no conversation found", and generic ENOENT for missing session files.
       const isStaleSession =
         sessionId &&
         output.error &&
-        /no conversation found|ENOENT.*\.jsonl|session.*not found/i.test(
+        /no conversation found|ENOENT.*\.json|session.*not found|failed to resume|invalid session/i.test(
           output.error,
         );
 
@@ -445,7 +420,7 @@ async function startMessageLoop(): Promise<void> {
   }
   messageLoopRunning = true;
 
-  logger.info(`NanoClaw running (default trigger: ${DEFAULT_TRIGGER})`);
+  logger.info(`NauggieClaww running (default trigger: ${DEFAULT_TRIGGER})`);
 
   while (true) {
     try {
@@ -573,12 +548,6 @@ async function main(): Promise<void> {
   initDatabase();
   logger.info('Database initialized');
   loadState();
-
-  // Ensure OneCLI agents exist for all registered groups.
-  // Recovers from missed creates (e.g. OneCLI was down at registration time).
-  for (const [jid, group] of Object.entries(registeredGroups)) {
-    ensureOneCLIAgent(jid, group);
-  }
 
   restoreRemoteControl();
 
@@ -764,7 +733,7 @@ const isDirectRun =
 
 if (isDirectRun) {
   main().catch((err) => {
-    logger.error({ err }, 'Failed to start NanoClaw');
+    logger.error({ err }, 'Failed to start NauggieClaww');
     process.exit(1);
   });
 }
